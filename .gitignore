@@ -1,0 +1,10 @@
+build/
+sdkconfig
+sdkconfig.old
+dependencies.lock
+managed_components/
+__pycache__/
+*.py[cod]
+.venv/
+captures/
+.vscode/settings.json
