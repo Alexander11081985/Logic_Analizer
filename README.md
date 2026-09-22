@@ -46,11 +46,8 @@ flash/PSRAM лініями цієї плати.
   кандидат її ролі (`LE/latch` або `CS`).
 - **PEAK67 power-on timing** — edge-event capture 1 s, trigger CH3/GPIO7
   rising. Монтаж: CH0=CLK, CH1=CS, CH2=DATA, CH3=3V3 sense. GUI шукає перше
-  повне 32-CLK вікно або підтверджене PEAK67 CS LOW-вікно 150…250 µs і
-  показує `3V3 rising → CS falling`, `→ first captured CLK rising` та
-  `→ CS rising/commit`. Якщо edge ISR пропустив близькі CLK/DATA переходи,
-  timing CS лишається доступним, але декодування слова явно позначається як
-  неповне; для бітового підтвердження використовується окремий raw capture.
+  CS LOW-вікно рівно з 32 CLK rising і показує `3V3 rising → CS falling`,
+  `→ first CLK rising` та `→ CS rising/commit`.
 - **PAL GPIO DAC / line** — raw 5 MHz, CH0 falling; відновлення
   `DAC=CH0|(CH1<<1)…|(CH5<<5)`, step-графік, коди 0/19/41/63, автоматичний
   пошук лінії та вимір 64/4.7/5.8/52/1.5 µs. Реальна роздільна здатність при

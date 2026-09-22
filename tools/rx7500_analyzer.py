@@ -492,29 +492,17 @@ class AnalyzerApp:
             if profile == "PEAK67 power-on timing":
                 power_time = a.get("power_rise_us")
                 frame = a.get("first_valid_frame")
-                command = frame or a.get("first_command_window")
-                windows = a.get("command_windows", [])
                 lines += [
                     f"3V3 rising: {power_time:.3f} µs" if power_time is not None else "3V3 rising: —",
                     f"Power timing: {a.get('power_timing_verdict', '—')}",
                 ]
                 if frame:
-                    lines.append(f"First valid frame: {frame['frame_hex']}")
-                if command:
-                    lines.append(f"3V3 rising → first command CS falling: {command['power_to_cs_fall_us']:.3f} µs")
-                    first_clk = command.get("power_to_first_clk_rise_us")
-                    if first_clk is not None:
-                        lines.append(f"3V3 rising → first captured CLK rising: {first_clk:.3f} µs")
                     lines += [
-                        f"3V3 rising → first command CS rising: {command['power_to_frame_complete_us']:.3f} µs",
-                        f"First command CS LOW: {command['cs_low_us']:.3f} µs",
-                        f"Captured CLK rising in first command: {command['captured_clk_rising_count']}",
-                        f"PEAK67-like command windows: {len(windows)}",
+                        f"First valid frame: {frame['frame_hex']}",
+                        f"3V3 rising → CS falling: {frame['power_to_cs_fall_us']:.3f} µs",
+                        f"3V3 rising → first CLK rising: {frame['power_to_first_clk_rise_us']:.3f} µs",
+                        f"3V3 rising → frame committed (CS rising): {frame['power_to_frame_complete_us']:.3f} µs",
                     ]
-                    if windows:
-                        lines.append(
-                            f"3V3 rising → last command CS rising: "
-                            f"{windows[-1]['power_to_frame_complete_us']:.3f} µs")
                 lines.append("")
 
             lines += [

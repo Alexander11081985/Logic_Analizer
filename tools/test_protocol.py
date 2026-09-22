@@ -235,28 +235,6 @@ class PalTests(unittest.TestCase):
 
 
 class Peak67ReverseEngineeringTests(unittest.TestCase):
-    def test_power_on_timing_survives_lost_clock_edges(self):
-        events = [
-            EdgeEvent(0, 0b1000, 0b1000),
-            EdgeEvent(50_000, 0b1011, 0b0011),
-            EdgeEvent(100_000, 0b1001, 0b0010),
-            EdgeEvent(100_002, 0b1000, 0b0001),
-            EdgeEvent(100_003, 0b1001, 0b0001),
-            EdgeEvent(100_195, 0b1011, 0b0010),
-        ]
-        capture = Capture(number=13, sample_rate_hz=0, version=2,
-                          acquisition=ACQ_EDGE, channel_count=8,
-                          timestamp_hz=1_000_000, initial_state=0,
-                          duration_ticks=1_000_000, trigger_channel=3,
-                          events=events)
-        result = analyze_peak67_power_on(capture)
-        command = result["first_command_window"]
-        self.assertEqual(result["power_timing_verdict"],
-                         "COMMAND TIMING FOUND; EDGE DATA INCOMPLETE")
-        self.assertEqual(command["power_to_cs_fall_us"], 100_000.0)
-        self.assertEqual(command["power_to_frame_complete_us"], 100_195.0)
-        self.assertEqual(command["captured_clk_rising_count"], 1)
-
     def test_power_on_delay_to_first_complete_frame(self):
         result = analyze_peak67_power_on(make_power_on_capture(0x00580005))
         frame = result["first_valid_frame"]
