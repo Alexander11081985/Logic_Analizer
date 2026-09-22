@@ -114,8 +114,9 @@ SPI/M та GND.
 - Реалізовано всі 64 слова A/B/E/F/R/P/H/U, одиночне перемикання каналу та
   підтверджену startup-послідовність із п'яти init-слів, A1 і збереженого
   каналу.
-- Враховано CLK idle HIGH, 32-bit MSB-first, звичайний CS HIGH `2,2 мкс` та
-  спеціальний A1→saved-channel CS HIGH `14,6 мкс`.
+- Враховано CLK idle HIGH, 32-bit MSB-first, номінальний звичайний CS HIGH
+  `2,3 мкс` (центр виміряних `2,2…2,4 мкс`) та спеціальний
+  A1→saved-channel CS HIGH `14,6 мкс`.
 - `README.md` містить мінімальний виклик і приклад STM32 HAL/DWT.
 - Обидва C-файли пройшли GCC 16.1 C99 `-Wall -Wextra -Werror`; host unit-test
   перевірив A4 startup frames, channel table та обидва CS timing і завершився
