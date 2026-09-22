@@ -21,8 +21,8 @@
 | Стан прошивки | Power-on timing firmware прошита на COM9; flash hash verified, hard reset виконано 2026-09-22 |
 | Виявлені порти | COM9 = нова ESP32-S3; COM3 = Intel AMT, не використовувати |
 | Монтаж аналізатора | PEAK67: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA підтверджено вимірюваннями |
-| Переносима C-бібліотека | `C:\VSCode\Peak67`: GPIO/delay callbacks, 64 канали, startup sequence, README і host tests |
-| Наступний крок | Повторити 3–5 незалежних power-cycle captures для розкиду затримки; перший вимір дав 385,646 мс до CS falling першої команди |
+| Переносима C-бібліотека | `C:\VSCode\Peak67`: 64 канали, startup sequence та виміряний power-on replay; GitLab commit `acf5758` |
+| Наступний крок | PEAK67 measurement завершено; перейти до reverse engineering PEAK35 |
 
 ## Мета
 
@@ -105,6 +105,19 @@ SPI/M та GND.
 - Python 3.14.6, Tkinter доступний, `pyserial 3.5` установлено.
 
 ## Історія міграції
+
+### 2026-09-22 — бібліотеку PEAK67 завершено новими power-on таймінгами
+
+- У `C:\VSCode\Peak67` додані публічні виміряні константи: idle HIGH
+  `82,946925 мс`, перший CS falling `385,646425 мс`, перший CS rising
+  `385,841888 мс`, завершення семикадрової серії `387,038763 мс`.
+- Додано `power_on_to_first_cs_fall_ns` у `peak67_timing_t` і окремий
+  блокувальний API `peak67_startup_from_power_on()`. Звичайний
+  `peak67_startup()` лишився без довгої затримки для вже увімкненого VRX.
+- Host-тест підтвердив сім слів і точний момент першого CS falling;
+  C99 `-Wall -Wextra -Werror` build і test завершились `PEAK67 tests passed`.
+- Зміни запушені в `git@git.3form.com.ua:ground-station/peak67.git`, commit
+  `acf5758`. PEAK67 measurement вважається завершеним; наступний VRX — PEAK35.
 
 ### 2026-09-22 — power-on decoder повернуто до попереднього стану
 
