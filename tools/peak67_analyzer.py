@@ -303,6 +303,8 @@ def analyze_peak67_power_on(capture: Capture,
         "power_rise_us": power_time,
         "power_initial_high": bool(initial_state & power_mask),
         "first_valid_frame": None,
+        "first_command_window": None,
+        "command_windows": [],
         "power_timing_verdict": "NO 3V3 RISING EDGE",
         "pretrigger_warning": (
             "CH3 3V3 rising is t=0. The value is measured from the ESP32 "
@@ -327,24 +329,38 @@ def analyze_peak67_power_on(capture: Capture,
                   for time_us, state, changed in rows
                   if cs_fall <= time_us < cs_rise
                   and changed & clk_mask and state & clk_mask]
-        if len(clocks) != 32:
-            continue
-
-        value = _bits_to_value([bit for _, bit in clocks], False)
-        result["first_valid_frame"] = {
+        window = {
             "cs_fall_us": cs_fall,
-            "first_clk_rise_us": clocks[0][0],
-            "last_clk_rise_us": clocks[-1][0],
+            "first_clk_rise_us": clocks[0][0] if clocks else None,
+            "last_clk_rise_us": clocks[-1][0] if clocks else None,
             "cs_rise_us": cs_rise,
-            "frame": value,
-            "frame_hex": f"0x{value:08X}",
             "power_to_cs_fall_us": cs_fall - power_time,
-            "power_to_first_clk_rise_us": clocks[0][0] - power_time,
+            "power_to_first_clk_rise_us": clocks[0][0] - power_time if clocks else None,
             "power_to_frame_complete_us": cs_rise - power_time,
+            "cs_low_us": cs_rise - cs_fall,
+            "captured_clk_rising_count": len(clocks),
         }
-        result["power_timing_verdict"] = "VALID 32-BIT FRAME FOUND"
-        break
+        # Twelve raw reference captures put a PEAK67 32-bit CS-low frame at
+        # approximately 192...196 us.  Edge ISR captures may lose CLK/DATA
+        # transitions separated by only about 0.6...1.0 us, but the widely
+        # separated CS boundaries remain useful for absolute boot timing.
+        if 150.0 <= window["cs_low_us"] <= 250.0:
+            result["command_windows"].append(window)
+            if result["first_command_window"] is None:
+                result["first_command_window"] = window
 
-    if result["first_valid_frame"] is None:
+        if len(clocks) == 32 and result["first_valid_frame"] is None:
+            value = _bits_to_value([bit for _, bit in clocks], False)
+            result["first_valid_frame"] = {
+                **window,
+                "frame": value,
+                "frame_hex": f"0x{value:08X}",
+            }
+
+    if result["first_valid_frame"] is not None:
+        result["power_timing_verdict"] = "VALID 32-BIT FRAME FOUND"
+    elif result["first_command_window"] is not None:
+        result["power_timing_verdict"] = "COMMAND TIMING FOUND; EDGE DATA INCOMPLETE"
+    else:
         result["power_timing_verdict"] = "NO COMPLETE 32-BIT FRAME IN CAPTURE"
     return result
