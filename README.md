@@ -44,6 +44,10 @@ flash/PSRAM лініями цієї плати.
   falling CLK, MSB-first і LSB-first, кількість бітів/байти/ціле значення,
   clock HIGH/LOW/period, DATA setup/hold, імпульси третьої лінії та лише
   кандидат її ролі (`LE/latch` або `CS`).
+- **PEAK35 3-wire reverse engineering** — окремий профіль із тими самими
+  protocol-neutral вимірюваннями, але власними назвами `P35_LINE0…2`.
+  Жодні ролі, полярність, довжина кадру або bit order із PEAK67 автоматично
+  не переносяться на PEAK35; вони мають бути підтверджені його captures.
 - **PEAK67 power-on timing** — edge-event capture 1 s, trigger CH3/GPIO7
   rising. Монтаж: CH0=CLK, CH1=CS, CH2=DATA, CH3=3V3 sense. GUI шукає перше
   CS LOW-вікно рівно з 32 CLK rising і показує `3V3 rising → CS falling`,

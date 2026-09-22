@@ -22,7 +22,7 @@
 | Виявлені порти | COM9 = нова ESP32-S3; COM3 = Intel AMT, не використовувати |
 | Монтаж аналізатора | PEAK67: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA підтверджено вимірюваннями |
 | Переносима C-бібліотека | `C:\VSCode\Peak67`: 64 канали, startup sequence та виміряний power-on replay; GitLab commit `acf5758` |
-| Наступний крок | PEAK67 measurement завершено; перейти до reverse engineering PEAK35 |
+| Наступний крок | PEAK35: підключити три control lines до CH0…CH2 і зняти перше відоме перемикання каналу |
 
 ## Мета
 
@@ -105,6 +105,18 @@ SPI/M та GND.
 - Python 3.14.6, Tkinter доступний, `pyserial 3.5` установлено.
 
 ## Історія міграції
+
+### 2026-09-22 — розпочато окремий reverse engineering PEAK35
+
+- Створено майбутній library workspace `C:\VSCode\Peak35` з окремими
+  `README.md`, `PROJECT_CONTEXT.md`, `docs/PEAK35_PROTOCOL.md` і каталогами
+  `include/src/tests`. Реалізацію C API навмисно не вигадано до captures.
+- У GUI додано profile `PEAK35 3-wire reverse engineering`: edge events,
+  20 ms, trigger CH0 rising, timeout 10 s, `P35_LINE0…2`.
+- PEAK35 використовує protocol-neutral decoder, але жодні ролі, bit order,
+  frame length чи timing PEAK67 не вважаються чинними для нього без окремих
+  вимірювань. Усі 18 наявних regression tests і syntax-check пройшли.
+- Firmware ESP32 не змінювалась; перепрошивка для PEAK35 profile не потрібна.
 
 ### 2026-09-22 — бібліотеку PEAK67 завершено новими power-on таймінгами
 
