@@ -4,7 +4,7 @@ import struct
 import unittest
 
 from pal_analyzer import analyze_pal_field, analyze_pal_line
-from peak67_analyzer import analyze_peak67
+from peak67_analyzer import analyze_peak67, analyze_peak67_power_on
 from rx7500_protocol import (
     ACQ_EDGE, ACQ_RAW, FLAG_TRUNCATED, Capture, EdgeEvent, PacketParser,
     TRIGGER_FALLING, analyze_capture, build_config_command, build_test_packet,
@@ -82,6 +82,37 @@ def make_three_wire_capture(value: int, bit_count: int, *, lsb_first: bool,
     return Capture(number=11, sample_rate_hz=0, version=2, acquisition=ACQ_EDGE,
                    channel_count=8, timestamp_hz=1_000_000,
                    initial_state=(bits[0] << 1), duration_ticks=after + 20,
+                   events=events)
+
+
+def make_power_on_capture(value: int, power_to_cs_us: int = 500) -> Capture:
+    state = 0
+    events: list[EdgeEvent] = []
+
+    state |= 1 << 3
+    events.append(EdgeEvent(0, state, 1 << 3))
+    state |= 0b011
+    events.append(EdgeEvent(100, state, 0b011))
+    state &= ~0b010
+    events.append(EdgeEvent(power_to_cs_us, state, 0b010))
+
+    for offset, bit_index in enumerate(range(31, -1, -1)):
+        base = power_to_cs_us + 1 + offset * 6
+        state &= ~0b001
+        events.append(EdgeEvent(base, state, 0b001))
+        bit = (value >> bit_index) & 1
+        if bool(state & 0b100) != bool(bit):
+            state ^= 0b100
+            events.append(EdgeEvent(base + 1, state, 0b100))
+        state |= 0b001
+        events.append(EdgeEvent(base + 2, state, 0b001))
+
+    state |= 0b010
+    events.append(EdgeEvent(power_to_cs_us + 194, state, 0b010))
+    return Capture(number=12, sample_rate_hz=0, version=2,
+                   acquisition=ACQ_EDGE, channel_count=8,
+                   timestamp_hz=1_000_000, initial_state=0,
+                   duration_ticks=1_000_000, trigger_channel=3,
                    events=events)
 
 
@@ -204,6 +235,16 @@ class PalTests(unittest.TestCase):
 
 
 class Peak67ReverseEngineeringTests(unittest.TestCase):
+    def test_power_on_delay_to_first_complete_frame(self):
+        result = analyze_peak67_power_on(make_power_on_capture(0x00580005))
+        frame = result["first_valid_frame"]
+        self.assertEqual(result["power_timing_verdict"], "VALID 32-BIT FRAME FOUND")
+        self.assertEqual(result["power_rise_us"], 0.0)
+        self.assertEqual(frame["frame"], 0x00580005)
+        self.assertEqual(frame["power_to_cs_fall_us"], 500.0)
+        self.assertEqual(frame["power_to_first_clk_rise_us"], 503.0)
+        self.assertEqual(frame["power_to_frame_complete_us"], 694.0)
+
     def test_24_bit_msb_frame_and_positive_latch(self):
         result = analyze_peak67(make_three_wire_capture(
             0xA5123C, 24, lsb_first=False, latch_pulse=True))

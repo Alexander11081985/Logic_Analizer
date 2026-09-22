@@ -44,6 +44,10 @@ flash/PSRAM лініями цієї плати.
   falling CLK, MSB-first і LSB-first, кількість бітів/байти/ціле значення,
   clock HIGH/LOW/period, DATA setup/hold, імпульси третьої лінії та лише
   кандидат її ролі (`LE/latch` або `CS`).
+- **PEAK67 power-on timing** — edge-event capture 1 s, trigger CH3/GPIO7
+  rising. Монтаж: CH0=CLK, CH1=CS, CH2=DATA, CH3=3V3 sense. GUI шукає перше
+  CS LOW-вікно рівно з 32 CLK rising і показує `3V3 rising → CS falling`,
+  `→ first CLK rising` та `→ CS rising/commit`.
 - **PAL GPIO DAC / line** — raw 5 MHz, CH0 falling; відновлення
   `DAC=CH0|(CH1<<1)…|(CH5<<5)`, step-графік, коди 0/19/41/63, автоматичний
   пошук лінії та вимір 64/4.7/5.8/52/1.5 µs. Реальна роздільна здатність при
@@ -62,7 +66,7 @@ Raw capture: 100 kHz…5 MHz, 256…32768 samples. Максимальне 5 MHz 
 триває 6.5536 ms; воно навмисно обмежене. Фактичну стабільність 5 MHz × 8
 каналів ще треба перевірити на платі — успішний build не є hardware proof.
 
-Edge capture: 1…100 ms, максимум 8192 подій, timestamp = CPU cycle counter
+Edge capture: 1 ms…5 s, максимум 8192 подій, timestamp = CPU cycle counter
 (фактична частота повертається в пакеті). ISR лише читає `GPIO.in` і записує
 preallocated event; USB/CRC/аналіз виконуються поза ISR. Overflow/truncation і
 trigger timeout явно повертаються у flags.
@@ -99,6 +103,26 @@ time третьої лінії до першого такту. Після пер
 можна окремо переставити trigger на `CH2 rising/falling`, щоб виміряти цей
 інтервал. До порівняння кількох відомих каналів жоден з варіантів
 MSB/LSB/rising/falling не вважається підтвердженим.
+
+## Вимірювання затримки після подачі живлення
+
+ESP32-S3 спочатку живиться окремо від USB і вже має бути підключений до GUI.
+Живлення PEAK67 вмикається окремо після arm. Не можна живити ESP від тієї ж
+лінії, яку він повинен побачити як trigger.
+
+```text
+PEAK67 CLK         -> ESP32 GPIO4 / CH0
+PEAK67 CS          -> ESP32 GPIO5 / CH1
+PEAK67 DATA        -> ESP32 GPIO6 / CH2
+PEAK67 3V3 sense   -> 4.7…10 kΩ -> ESP32 GPIO7 / CH3
+PEAK67 GND         -> ESP32 GND
+```
+
+На CH3 дозволено подавати лише перевірені 3,3 В, не 5 В. Вибрати профіль
+`PEAK67 power-on timing`, натиснути `Capture`, переконатися у статусі ARMED і
+після цього подати живлення на приймач. Захоплення триває 1 секунду після
+CH3 rising. Значення відраховується від цифрового порогу GPIO7, тому це
+затримка від детектування 3V3, а не від ідеального моменту 0 В.
 
 Статична time-critical RAM: 32768 B raw + 65536 B edge events + 4096 B legacy
 payload, разом близько 100 KiB без dynamic allocation у capture path.

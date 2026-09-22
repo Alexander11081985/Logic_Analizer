@@ -49,7 +49,7 @@ Firmware bounds:
 
 - raw rate 100000…5000000 Hz and must divide actual CPU clock exactly;
 - raw sample_count 256…32768;
-- edge duration 1000…100000 µs;
+- edge duration 1000…5000000 µs;
 - timeout 0…60000 ms;
 - invalid command/version/CRC/parameters are ignored and never change capture.
 

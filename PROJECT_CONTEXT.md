@@ -15,14 +15,14 @@
 | IDF_PATH | `C:\esp\v6.0.1\esp-idf` |
 | IDF_TOOLS_PATH | `C:\Espressif\tools` |
 | Target | `esp32s3` |
-| Стан коду | v1 RX7500 збережено; v2 raw/edge, PAL/failover, PEAK67 profile; raw edge-state trigger bug виправлено |
+| Стан коду | v1 RX7500 збережено; v2 raw/edge, PAL/failover, PEAK67 profiles; додано окреме вимірювання 3V3→перша валідна команда |
 | Остання збірка | ESP-IDF v6.0.1 — SUCCESS без warning, 2026-09-22 |
 | Application binary | `0x430B0`, 74% app partition вільно |
-| Стан прошивки | Raw-trigger ANYEDGE fix прошитий на COM9 і підтверджений реальними A2 та A4 boot-captures 2026-09-22 |
+| Стан прошивки | Power-on timing firmware прошита на COM9; flash hash verified, hard reset виконано 2026-09-22 |
 | Виявлені порти | COM9 = нова ESP32-S3; COM3 = Intel AMT, не використовувати |
 | Монтаж аналізатора | PEAK67: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA підтверджено вимірюваннями |
 | Переносима C-бібліотека | `C:\VSCode\Peak67`: GPIO/delay callbacks, 64 канали, startup sequence, README і host tests |
-| Наступний крок | Стартова серія PEAK67 підтверджена: 5 init-слів → A1 → збережений канал; далі відтворити ці 7 слів перед перемиканням каналів |
+| Наступний крок | Під'єднати PEAK67 3V3 через 4,7…10 кОм до CH3/GPIO7 та виміряти 3V3-rise→перший валідний 32-бітний кадр |
 
 ## Мета
 
@@ -78,7 +78,7 @@ SPI/M та GND.
 
 - 8 входів GPIO4…GPIO11, input/no-pull, один `GPIO.in` read.
 - Два bounded engines: raw `uint8_t` до 5 MHz/32768 samples; edge events до
-  100 ms/8192 events із cycle timestamps.
+  5 s/8192 events із cycle timestamps.
 - GUI передає versioned CRC command; firmware повертає actual configuration.
 - Profile-specific аналіз виконується на desktop, не в time-critical firmware.
 - Повний layout, limits і flags: `PROTOCOL.md`; користування: `README.md`.
@@ -105,6 +105,30 @@ SPI/M та GND.
 - Python 3.14.6, Tkinter доступний, `pyserial 3.5` установлено.
 
 ## Історія міграції
+
+### 2026-09-22 — підготовлено вимірювання абсолютної power-on затримки PEAK67
+
+- У GUI додано окремий профіль `PEAK67 power-on timing`: edge events,
+  trigger CH3 rising, вікно 1 s, timeout 60 s.
+- Монтаж для цього вимірювання: `CLK→CH0/GPIO4`, `CS→CH1/GPIO5`,
+  `DATA→CH2/GPIO6`, контрольована шина PEAK67 `3V3→4,7…10 кОм→CH3/GPIO7`,
+  спільний GND. ESP32-S3 живиться від USB до подачі живлення на приймач.
+- На CH3 дозволено подавати лише перевірені 3,3 V; 5 V на GPIO ESP32-S3
+  подавати не можна.
+- Аналізатор шукає не перший випадковий фронт CLK, а перше CS-low вікно,
+  яке містить рівно 32 висхідні фронти CLK, і показує три інтервали:
+  `3V3 rise→CS falling`, `3V3 rise→first CLK rising` та
+  `3V3 rise→CS rising/frame commit`, а також 32-бітне слово.
+- Позначка `3V3 rise` є моментом перетину цифрового порога GPIO ESP32-S3,
+  а не ідеальним фізичним моментом 0 V. Для оцінки розкиду потрібно 3–5
+  незалежних power-cycle captures.
+- Максимальне edge-вікно firmware збільшено зі 100 ms до 5 s. Synthetic
+  power-on test додано; усі 18 Python tests пройшли, syntax-check пройшов.
+- ESP-IDF v6.0.1 clean build із вимкненим ccache успішний: application
+  `0x430B0`, 74% app partition вільно. Firmware успішно прошита на COM9:
+  ESP32-S3 rev 0.2, flash 4 MB, PSRAM 2 MB, усі hash verified, hard reset.
+- Фактична абсолютна затримка ще не виміряна; наступний крок — виконати
+  capture після під'єднання CH3 до контрольованої 3,3-V шини.
 
 ### 2026-09-22 — створено переносиму C-бібліотеку PEAK67
 

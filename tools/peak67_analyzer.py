@@ -281,3 +281,70 @@ def analyze_peak67(capture: Capture, glitch_filter_ns: float = 0.0) -> dict[str,
         "unique_rising_frames": len(unique_rising),
         "pretrigger_warning": "first CLK edge is the trigger; DATA setup and line-3 lead time before it are not captured",
     }
+
+
+def analyze_peak67_power_on(capture: Capture,
+                            glitch_filter_ns: float = 0.0) -> dict[str, object]:
+    """Measure CH3 3V3 rising to the first complete fixed-mapping frame.
+
+    Fixed wiring: CH0=CLK, CH1=CS, CH2=DATA, CH3=receiver 3V3 sense.  A
+    frame is accepted only when one CS LOW window contains exactly 32 CLK
+    rising edges; this rejects unrelated power-up transitions.
+    """
+    result = analyze_peak67(capture, glitch_filter_ns)
+    initial_state, rows = _transitions(capture, glitch_filter_ns)
+    power_mask = 1 << 3
+    clk_mask, cs_mask, data_mask = LINE_MASKS
+
+    power_rises = [time_us for time_us, state, changed in rows
+                   if changed & power_mask and state & power_mask]
+    power_time = power_rises[0] if power_rises else None
+    result.update({
+        "power_rise_us": power_time,
+        "power_initial_high": bool(initial_state & power_mask),
+        "first_valid_frame": None,
+        "power_timing_verdict": "NO 3V3 RISING EDGE",
+        "pretrigger_warning": (
+            "CH3 3V3 rising is t=0. The value is measured from the ESP32 "
+            "digital input threshold crossing, not from an ideal 0 V power instant."
+        ),
+    })
+    if power_time is None:
+        return result
+
+    cs_falls = [time_us for time_us, state, changed in rows
+                if time_us >= power_time and changed & cs_mask
+                and not state & cs_mask]
+    cs_rises = [time_us for time_us, state, changed in rows
+                if time_us >= power_time and changed & cs_mask
+                and state & cs_mask]
+
+    for cs_fall in cs_falls:
+        cs_rise = next((time_us for time_us in cs_rises if time_us > cs_fall), None)
+        if cs_rise is None:
+            continue
+        clocks = [(time_us, 1 if state & data_mask else 0)
+                  for time_us, state, changed in rows
+                  if cs_fall <= time_us < cs_rise
+                  and changed & clk_mask and state & clk_mask]
+        if len(clocks) != 32:
+            continue
+
+        value = _bits_to_value([bit for _, bit in clocks], False)
+        result["first_valid_frame"] = {
+            "cs_fall_us": cs_fall,
+            "first_clk_rise_us": clocks[0][0],
+            "last_clk_rise_us": clocks[-1][0],
+            "cs_rise_us": cs_rise,
+            "frame": value,
+            "frame_hex": f"0x{value:08X}",
+            "power_to_cs_fall_us": cs_fall - power_time,
+            "power_to_first_clk_rise_us": clocks[0][0] - power_time,
+            "power_to_frame_complete_us": cs_rise - power_time,
+        }
+        result["power_timing_verdict"] = "VALID 32-BIT FRAME FOUND"
+        break
+
+    if result["first_valid_frame"] is None:
+        result["power_timing_verdict"] = "NO COMPLETE 32-BIT FRAME IN CAPTURE"
+    return result

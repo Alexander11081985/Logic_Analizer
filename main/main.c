@@ -29,6 +29,7 @@ static const gpio_num_t s_channel_gpio[CHANNEL_COUNT] = {
 #define LEGACY_SAMPLE_COUNT   8192U
 #define MAX_RAW_SAMPLES       32768U
 #define MAX_EDGE_EVENTS       8192U
+#define MAX_EDGE_DURATION_US  5000000U
 
 #define V1_HEADER_SIZE 28U
 #define V2_HEADER_SIZE 56U
@@ -402,7 +403,7 @@ static bool config_is_valid(const capture_config_t *config)
     }
     return config->acquisition == ACQ_EDGE && config->sample_rate_hz == 0U &&
            config->sample_count == 0U && config->duration_us >= 1000U &&
-           config->duration_us <= 100000U;
+           config->duration_us <= MAX_EDGE_DURATION_US;
 }
 
 static void process_v2_command(void)

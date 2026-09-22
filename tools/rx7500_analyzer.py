@@ -18,7 +18,7 @@ except ImportError as error:
     SERIAL_IMPORT_ERROR = error
 
 from pal_analyzer import analyze_failover, analyze_pal_field, analyze_pal_line
-from peak67_analyzer import analyze_peak67
+from peak67_analyzer import analyze_peak67, analyze_peak67_power_on
 from rx7500_protocol import (
     ACQ_EDGE, ACQ_RAW, FLAG_OVERFLOW, FLAG_TIMEOUT, FLAG_TRUNCATED,
     TRIGGER_CHANNEL_IMMEDIATE, TRIGGER_EITHER, TRIGGER_FALLING,
@@ -41,6 +41,13 @@ PROFILES = {
         "duration": 20_000, "trigger": 0, "edge": TRIGGER_RISING,
         "timeout": 10_000,
         "names": ["PEAK_LINE0", "PEAK_LINE1", "PEAK_LINE2", "AUX3", "AUX4", "AUX5", "AUX6", "AUX7"],
+    },
+    "PEAK67 power-on timing": {
+        "acq": ACQ_EDGE, "rate": 0, "count": 0,
+        "duration": 1_000_000, "trigger": 3, "edge": TRIGGER_RISING,
+        "timeout": 60_000,
+        "names": ["PEAK_CLK", "PEAK_CS", "PEAK_DATA", "PEAK_3V3",
+                  "AUX4", "AUX5", "AUX6", "AUX7"],
     },
     "PAL GPIO DAC / line": {
         "acq": ACQ_RAW, "rate": 5_000_000, "count": 8192,
@@ -285,8 +292,9 @@ class AnalyzerApp:
         for index, variable in enumerate(self.channel_visible):
             if self.profile_var.get() == "RX7500 SPI":
                 variable.set(index < 4)
-            elif self.profile_var.get() == "PEAK67 3-wire reverse engineering":
-                variable.set(index < 3)
+            elif self.profile_var.get().startswith("PEAK67"):
+                count = 4 if self.profile_var.get() == "PEAK67 power-on timing" else 3
+                variable.set(index < count)
             else:
                 variable.set(True)
 
@@ -396,6 +404,9 @@ class AnalyzerApp:
                 self.analysis = analyze_capture(self.capture, max(0.0, float(self.filter_var.get())))
             elif profile == "PEAK67 3-wire reverse engineering":
                 self.analysis = analyze_peak67(self.capture, max(0.0, float(self.filter_var.get())))
+            elif profile == "PEAK67 power-on timing":
+                self.analysis = analyze_peak67_power_on(
+                    self.capture, max(0.0, float(self.filter_var.get())))
             elif profile == "PAL GPIO DAC / line":
                 self.analysis = analyze_pal_line(self._filtered_capture())
             elif profile == "PAL field timing":
@@ -459,11 +470,27 @@ class AnalyzerApp:
                       f"Frequency: {a['direct_frequency'] or '—'} MHz",
                       f"SPI/M HIGH: {a['mode_high_percent']:.2f}%",
                       f"Verdict: {'VALID' if a['direct_frequency'] and len(a['clk_rising']) == 24 and a['selected_le'] else 'INVALID'}"]
-        elif profile == "PEAK67 3-wire reverse engineering":
+        elif profile.startswith("PEAK67"):
             def timing_text(stats):
                 if not stats or stats[0] is None:
                     return "—"
                 return f"{stats[0]:.3f}/{stats[1]:.3f}/{stats[2]:.3f} µs"
+
+            if profile == "PEAK67 power-on timing":
+                power_time = a.get("power_rise_us")
+                frame = a.get("first_valid_frame")
+                lines += [
+                    f"3V3 rising: {power_time:.3f} µs" if power_time is not None else "3V3 rising: —",
+                    f"Power timing: {a.get('power_timing_verdict', '—')}",
+                ]
+                if frame:
+                    lines += [
+                        f"First valid frame: {frame['frame_hex']}",
+                        f"3V3 rising → CS falling: {frame['power_to_cs_fall_us']:.3f} µs",
+                        f"3V3 rising → first CLK rising: {frame['power_to_first_clk_rise_us']:.3f} µs",
+                        f"3V3 rising → frame committed (CS rising): {frame['power_to_frame_complete_us']:.3f} µs",
+                    ]
+                lines.append("")
 
             lines += [
                 f"Transitions CH0/CH1/CH2: {a.get('transition_counts', '—')}",
@@ -622,7 +649,7 @@ class AnalyzerApp:
                 break
             initial = state
         mapping_names: dict[int, str] = {}
-        if self.profile_var.get() == "PEAK67 3-wire reverse engineering" and self.analysis:
+        if self.profile_var.get().startswith("PEAK67") and self.analysis:
             for key, role in (("detected_clock_channel", "CLK?"),
                               ("detected_data_channel", "DATA?"),
                               ("detected_control_channel", "LE/CS?")):
