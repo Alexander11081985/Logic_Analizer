@@ -22,7 +22,7 @@
 | Виявлені порти | COM9 = нова ESP32-S3; COM3 = Intel AMT, не використовувати |
 | Монтаж аналізатора | PEAK67: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA підтверджено вимірюваннями |
 | Переносима C-бібліотека | `C:\VSCode\Peak67`: 64 канали, startup sequence та виміряний power-on replay; GitLab commit `acf5758` |
-| Наступний крок | PEAK35: підключити три control lines до CH0…CH2 і зняти перше відоме перемикання каналу |
+| Наступний крок | PEAK35: перезняти неповний A7; A1–A6/A8 уже декодовано як 32-bit MSB-first |
 
 ## Мета
 
@@ -117,6 +117,22 @@ SPI/M та GND.
   frame length чи timing PEAK67 не вважаються чинними для нього без окремих
   вимірювань. Усі 18 наявних regression tests і syntax-check пройшли.
 - Firmware ESP32 не змінювалась; перепрошивка для PEAK35 profile не потрібна.
+
+### 2026-09-22 — PEAK35 Band A первинно декодовано
+
+- У `Documents\Peak35` перевірено A1…A8 raw 5 MHz captures. A1–A6 та A8
+  мають 32 логічні біти; A7 містить лише 27 останніх бітів і потребує
+  повторного захоплення.
+- Mapping evidence: CH0=CLK, CH1=active-LOW control/commit candidate,
+  CH2=DATA; sampling rising, MSB-first.
+- Слова: `04ED8000`, `04FC8000`, `050B8000`, `051A8000`, `05298000`,
+  `05388000`, очікуване/partial A7=`05478000`, A8=`05568000`.
+  Підтверджений повними сусідами крок Band A=`0x000F0000`.
+- За сімома повними captures CLK period=`6,000/6,121/6,400 мкс`,
+  HIGH=`5,000/5,079/5,200`, LOW=`1,000/1,041/1,200`, DATA setup після
+  transition=`0,200/0,352/0,600`, last CLK rising→CH1 rising=
+  `5,000/5,114/5,200 мкс`.
+- Деталі й batch tool записані в `C:\VSCode\Peak35`, local commit `68e8370`.
 
 ### 2026-09-22 — бібліотеку PEAK67 завершено новими power-on таймінгами
 
