@@ -176,6 +176,7 @@ class AnalyzerApp:
         self.channel_visible = [tk.BooleanVar(value=True) for _ in range(8)]
 
         self._build_ui()
+        self.profile_var.trace_add("write", self._profile_changed)
         self._apply_profile()
         self.refresh_ports()
         self.root.after(50, self._poll_events)
@@ -216,7 +217,6 @@ class AnalyzerApp:
         for column, (label, widget) in enumerate(fields):
             ttk.Label(config, text=label).grid(row=0, column=column, padx=3, sticky="w")
             widget.grid(row=1, column=column, padx=3, sticky="ew")
-        fields[0][1].bind("<<ComboboxSelected>>", lambda _event: self._apply_profile())
         ttk.Button(config, text="Apply / arm", command=self.capture_once).grid(row=1, column=len(fields), padx=6)
 
         channels = ttk.LabelFrame(self.root, text="Channels (GPIO4…GPIO11)", padding=5)
@@ -278,6 +278,10 @@ class AnalyzerApp:
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
+    def _profile_changed(self, *_args) -> None:
+        if self.profile_var.get() in PROFILES:
+            self._apply_profile()
+
     def _apply_profile(self) -> None:
         profile = PROFILES[self.profile_var.get()]
         self.acq_var.set("Raw samples" if profile["acq"] == ACQ_RAW else "Edge events")
@@ -301,10 +305,19 @@ class AnalyzerApp:
     def refresh_ports(self) -> None:
         if list_ports is None:
             return
-        values = [f"{item.device} — {item.description}" for item in sorted(list_ports.comports(), key=lambda p: p.device)]
+        ports = sorted(list_ports.comports(), key=lambda p: p.device)
+        values = [f"{item.device} — {item.description}" for item in ports]
         self.port_combo["values"] = values
         if values and self.port_var.get() not in values:
-            self.port_var.set(next((v for v in values if v.startswith("COM14 ")), values[0]))
+            preferred = next((
+                f"{item.device} — {item.description}"
+                for item in ports if item.vid == 0x303A
+            ), None)
+            if preferred is None:
+                preferred = next((v for v in values if v.startswith("COM9 ")), None)
+            if preferred is None:
+                preferred = next((v for v in values if v.startswith("COM14 ")), values[0])
+            self.port_var.set(preferred)
 
     def connect(self) -> None:
         if self.worker is None or not self.port_var.get():
