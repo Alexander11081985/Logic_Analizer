@@ -21,6 +21,7 @@
 | Стан прошивки | Raw-trigger ANYEDGE fix прошитий на COM9 і підтверджений реальними A2 та A4 boot-captures 2026-09-22 |
 | Виявлені порти | COM9 = нова ESP32-S3; COM3 = Intel AMT, не використовувати |
 | Монтаж аналізатора | PEAK67: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA підтверджено вимірюваннями |
+| Переносима C-бібліотека | `C:\VSCode\Peak67`: GPIO/delay callbacks, 64 канали, startup sequence, README і host tests |
 | Наступний крок | Стартова серія PEAK67 підтверджена: 5 init-слів → A1 → збережений канал; далі відтворити ці 7 слів перед перемиканням каналів |
 
 ## Мета
@@ -104,6 +105,22 @@ SPI/M та GND.
 - Python 3.14.6, Tkinter доступний, `pyserial 3.5` установлено.
 
 ## Історія міграції
+
+### 2026-09-22 — створено переносиму C-бібліотеку PEAK67
+
+- Новий окремий проєкт: `C:\VSCode\Peak67`.
+- `include/peak67.h` + `src/peak67.c` не залежать від HAL/Arduino/RTOS;
+  платформа передає callback-и CLK, CS, DATA і nanosecond delay.
+- Реалізовано всі 64 слова A/B/E/F/R/P/H/U, одиночне перемикання каналу та
+  підтверджену startup-послідовність із п'яти init-слів, A1 і збереженого
+  каналу.
+- Враховано CLK idle HIGH, 32-bit MSB-first, звичайний CS HIGH `2,2 мкс` та
+  спеціальний A1→saved-channel CS HIGH `14,6 мкс`.
+- `README.md` містить мінімальний виклик і приклад STM32 HAL/DWT.
+- Обидва C-файли пройшли GCC 16.1 C99 `-Wall -Wextra -Werror`; host unit-test
+  перевірив A4 startup frames, channel table та обидва CS timing і завершився
+  `PEAK67 tests passed`.
+- Абсолютна power-on→first-frame затримка не додана, бо ще не виміряна.
 
 ### 2026-09-22 — незалежний запуск A4 підтвердив стартовий алгоритм
 
