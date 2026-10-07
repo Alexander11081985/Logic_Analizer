@@ -49,11 +49,32 @@ PROFILES = {
         "names": ["P35_LINE0", "P35_LINE1", "P35_LINE2", "AUX3",
                   "AUX4", "AUX5", "AUX6", "AUX7"],
     },
+    "PEAK35 verified raw frame": {
+        "acq": ACQ_RAW, "rate": 5_000_000, "count": 8192,
+        "duration": 0, "trigger": 1, "edge": TRIGGER_FALLING,
+        "timeout": 10_000,
+        "names": ["P35_CLK", "P35_CS", "P35_DATA", "AUX3",
+                  "AUX4", "AUX5", "AUX6", "AUX7"],
+    },
     "PEAK67 power-on timing": {
         "acq": ACQ_EDGE, "rate": 0, "count": 0,
         "duration": 1_000_000, "trigger": 3, "edge": TRIGGER_RISING,
         "timeout": 60_000,
         "names": ["PEAK_CLK", "PEAK_CS", "PEAK_DATA", "PEAK_3V3",
+                  "AUX4", "AUX5", "AUX6", "AUX7"],
+    },
+    "PEAK35 power-on timing": {
+        "acq": ACQ_EDGE, "rate": 0, "count": 0,
+        "duration": 1_000_000, "trigger": 3, "edge": TRIGGER_RISING,
+        "timeout": 60_000,
+        "names": ["P35_CLK", "P35_CS", "P35_DATA", "P35_3V3",
+                  "AUX4", "AUX5", "AUX6", "AUX7"],
+    },
+    "PEAK35 power-on frames": {
+        "acq": ACQ_RAW, "rate": 5_000_000, "count": 8192,
+        "duration": 0, "trigger": 1, "edge": TRIGGER_FALLING,
+        "timeout": 60_000,
+        "names": ["P35_CLK", "P35_CS", "P35_DATA", "P35_3V3",
                   "AUX4", "AUX5", "AUX6", "AUX7"],
     },
     "PAL GPIO DAC / line": {
@@ -304,7 +325,11 @@ class AnalyzerApp:
             if self.profile_var.get() == "RX7500 SPI":
                 variable.set(index < 4)
             elif self.profile_var.get().startswith(("PEAK67", "PEAK35")):
-                count = 4 if self.profile_var.get() == "PEAK67 power-on timing" else 3
+                count = 4 if self.profile_var.get() in (
+                    "PEAK67 power-on timing",
+                    "PEAK35 power-on timing",
+                    "PEAK35 power-on frames",
+                ) else 3
                 variable.set(index < count)
             else:
                 variable.set(True)
@@ -408,6 +433,8 @@ class AnalyzerApp:
         if self.profile_var.get() not in (
             "PEAK67 3-wire reverse engineering",
             "PEAK35 3-wire reverse engineering",
+            "PEAK35 verified raw frame",
+            "PEAK35 power-on frames",
         ):
             return True
         peak_mask = 0x07
@@ -426,9 +453,12 @@ class AnalyzerApp:
             if profile == "RX7500 SPI":
                 self.analysis = analyze_capture(self.capture, max(0.0, float(self.filter_var.get())))
             elif profile in ("PEAK67 3-wire reverse engineering",
-                              "PEAK35 3-wire reverse engineering"):
+                              "PEAK35 3-wire reverse engineering",
+                              "PEAK35 verified raw frame",
+                              "PEAK35 power-on frames"):
                 self.analysis = analyze_peak67(self.capture, max(0.0, float(self.filter_var.get())))
-            elif profile == "PEAK67 power-on timing":
+            elif profile in ("PEAK67 power-on timing",
+                              "PEAK35 power-on timing"):
                 self.analysis = analyze_peak67_power_on(
                     self.capture, max(0.0, float(self.filter_var.get())))
             elif profile == "PAL GPIO DAC / line":
@@ -500,7 +530,8 @@ class AnalyzerApp:
                     return "—"
                 return f"{stats[0]:.3f}/{stats[1]:.3f}/{stats[2]:.3f} µs"
 
-            if profile == "PEAK67 power-on timing":
+            if profile in ("PEAK67 power-on timing",
+                            "PEAK35 power-on timing"):
                 power_time = a.get("power_rise_us")
                 frame = a.get("first_valid_frame")
                 lines += [

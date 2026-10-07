@@ -8,21 +8,22 @@
 
 | Поле | Поточний стан |
 |---|---|
-| Оновлено | 2026-09-22 |
+| Оновлено | 2026-10-07 |
 | Плата | Waveshare ESP32-S3 Zero |
 | Проєкт | `C:\Espressif_progect\SKANER_LOG_ANALIZATOR` |
 | Framework | Чистий ESP-IDF v6.0.1; Arduino/PlatformIO відсутні |
 | IDF_PATH | `C:\esp\v6.0.1\esp-idf` |
 | IDF_TOOLS_PATH | `C:\Espressif\tools` |
 | Target | `esp32s3` |
-| Стан коду | v1 RX7500 збережено; v2 raw/edge, PAL/failover, PEAK67 profiles; додано окреме вимірювання 3V3→перша валідна команда |
+| Стан коду | v1 RX7500 збережено; v2 raw/edge, PAL/failover, PEAK67 і PEAK35 profiles; Python GUI декодує та зберігає captures |
 | Остання збірка | ESP-IDF v6.0.1 — SUCCESS без warning, 2026-09-22 |
 | Application binary | `0x430B0`, 74% app partition вільно |
 | Стан прошивки | Power-on timing firmware прошита на COM9; flash hash verified, hard reset виконано 2026-09-22 |
 | Виявлені порти | COM9 = нова ESP32-S3; COM3 = Intel AMT, не використовувати |
 | Монтаж аналізатора | PEAK67: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA підтверджено вимірюваннями |
-| Переносима C-бібліотека | `C:\VSCode\Peak67`: 64 канали, startup sequence та виміряний power-on replay; GitLab commit `acf5758` |
-| Наступний крок | PEAK35: перезняти неповний A7; A1–A6/A8 уже декодовано як 32-bit MSB-first |
+| Переносимі C-бібліотеки | `C:\VSCode\Peak67`: hardware verified, рекомендовано `peak67_startup()` без power-on прив'язки, commit `d815aca`; `C:\VSCode\Peak35`: 64/64 канали, startup A7/U8 і power-on timing, commit `2bbda9e` |
+| Репозиторії | Аналізатор: `github.com/Alexander11081985/Logic_Analizer`; бібліотеки: GitLab + `github.com/Alexander11081985/peak67` і `/peak35` |
+| Наступний крок | Перевірити бібліотечний startup PEAK35 на реальному приймачі; для PEAK67 абсолютна power-on затримка більше не потрібна |
 
 ## Мета
 
@@ -105,6 +106,51 @@ SPI/M та GND.
 - Python 3.14.6, Tkinter доступний, `pyserial 3.5` установлено.
 
 ## Історія міграції
+
+### 2026-10-07 — контекст синхронізовано після завершення PEAK35/PEAK67
+
+- Підтверджено призначення цього файлу: він є постійним handoff-контекстом
+  саме для ESP32-S3 firmware, Python GUI та профілів логічного аналізатора.
+- PEAK35 startup підтверджено двома raw captures. Перші шість слів однакові:
+  `00580005 0080803C 000004B3 00068F42 08008011 064B8000`; сьомий кадр
+  відновлює saved channel: A7=`05478000`, U8=`08B68000`.
+- PEAK35 power→first CS falling=`388,610650 мс`; звичайний CS HIGH gap
+  `2,2…2,4 мкс`; gap перед saved frame виміряно `11,4 мкс` для A7 і
+  `16,0 мкс` для U8. Бібліотека використовує безпечне default `16,0 мкс`.
+- `C:\VSCode\Peak35` містить `peak35_startup()` і
+  `peak35_startup_from_power_on()`, host-тести A7/U8 та документацію;
+  GitLab/GitHub синхронізовані на commit `2bbda9e`.
+- PEAK67 повністю перевірено на реальному приймачі. Hardware-тест підтвердив,
+  що абсолютна затримка від подачі живлення не впливає на роботу: стартові
+  слова можна одразу передавати через `peak67_startup()`. Функція
+  `peak67_startup_from_power_on()` залишена лише як лабораторний reference
+  replay штатної осцилограми. GitLab/GitHub commit `d815aca`.
+- У робочому дереві аналізатора наявні профілі `PEAK35 verified raw frame`,
+  `PEAK35 power-on timing` і `PEAK35 power-on frames`; перед наступною зміною
+  перевірити `git status` та не втратити незакомічені правки.
+
+### 2026-09-23 — PEAK35 підготовлено до power-on capture
+
+- Усі 64 канали PEAK35 підтвердили формулу `frame=(RF_MHz-477)<<15`.
+- У GUI додано `PEAK35 power-on timing`: edge events 1 s, trigger
+  CH3/GPIO7 rising, timeout 60 s; CH0=CLK, CH1=CS, CH2=DATA, CH3=3V3 sense.
+- Power-on decoder повторно використовує лише загальну перевірку кадру:
+  CS LOW-вікно повинно містити рівно 32 rising CLK. Значення startup-команд
+  PEAK67 на PEAK35 не переносяться.
+- Після capture потрібно визначити абсолютні 3V3→перший кадр таймінги,
+  повну стартову послідовність, оновити `C:\VSCode\Peak35` і запушити в
+  `git@git.3form.com.ua:ground-station/Peak35.git`.
+
+### 2026-09-23 — перший PEAK35 power-on timing capture
+
+- `start Peak35.csv`: CH3/3V3 rising є `t=0`; керувальні лінії перейшли HIGH
+  через `83,626638 мс`; перший CS falling — через `388,610650 мс`; останній
+  видимий CS rising — через `390,010650 мс`; burst триває `1,400000 мс`.
+- Edge capture зберіг CS timing, але пропустив більшість коротких CLK LOW
+  близько 1 мкс, тому DATA-слова з нього відновлювати не можна.
+- Додано profile `PEAK35 power-on frames`: raw 5 MHz, 8192 samples,
+  trigger CH1 falling, timeout 60 s. Його 1,6384-мс вікно покриває виміряний
+  1,4000-мс startup burst і має записати всі пакети без втрати CLK.
 
 ### 2026-09-22 — розпочато окремий reverse engineering PEAK35
 

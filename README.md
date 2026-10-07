@@ -48,10 +48,22 @@ flash/PSRAM лініями цієї плати.
   protocol-neutral вимірюваннями, але власними назвами `P35_LINE0…2`.
   Жодні ролі, полярність, довжина кадру або bit order із PEAK67 автоматично
   не переносяться на PEAK35; вони мають бути підтверджені його captures.
+- **PEAK35 verified raw frame** — після первинного підтвердження ролей:
+  raw 5 MHz/8192 samples, CH1 falling trigger, фіксовані назви
+  CH0=CLK, CH1=CS, CH2=DATA. Trigger від CS запускає sampling до першого
+  CLK і усуває обрізання старших бітів, яке виникало при CH0 rising.
 - **PEAK67 power-on timing** — edge-event capture 1 s, trigger CH3/GPIO7
   rising. Монтаж: CH0=CLK, CH1=CS, CH2=DATA, CH3=3V3 sense. GUI шукає перше
   CS LOW-вікно рівно з 32 CLK rising і показує `3V3 rising → CS falling`,
   `→ first CLK rising` та `→ CS rising/commit`.
+- **PEAK35 power-on timing** — окремий power-on capture для PEAK35:
+  edge events 1 s, trigger CH3/GPIO7 rising, timeout 60 s. Монтаж:
+  CH0=CLK, CH1=CS, CH2=DATA; доступна внутрішня шина PEAK35 3V3 подається
+  на CH3 лише як sense-сигнал через послідовний резистор 4,7…10 кОм.
+- **PEAK35 power-on frames** — другий етап після вимірювання абсолютного
+  power-on timing: raw 5 MHz/8192 samples, trigger CH1/CS falling, timeout
+  60 s. Вікно 1,6384 мс починається від першого кадру і записує всі CLK/DATA
+  біти startup burst; CH3 у цьому capture вже постійно HIGH.
 - **PAL GPIO DAC / line** — raw 5 MHz, CH0 falling; відновлення
   `DAC=CH0|(CH1<<1)…|(CH5<<5)`, step-графік, коди 0/19/41/63, автоматичний
   пошук лінії та вимір 64/4.7/5.8/52/1.5 µs. Реальна роздільна здатність при
