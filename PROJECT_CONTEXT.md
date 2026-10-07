@@ -15,15 +15,15 @@
 | IDF_PATH | `C:\esp\v6.0.1\esp-idf` |
 | IDF_TOOLS_PATH | `C:\Espressif\tools` |
 | Target | `esp32s3` |
-| Стан коду | v1 RX7500 збережено; v2 raw/edge, PAL/failover, PEAK67 і PEAK35 profiles; Python GUI декодує та зберігає captures |
+| Стан коду | v1 RX7500 збережено; v2 raw/edge, PAL/failover, PEAK67/PEAK35/PEAK89 profiles; Python GUI декодує та зберігає captures |
 | Остання збірка | ESP-IDF v6.0.1 — SUCCESS без warning, 2026-09-22 |
 | Application binary | `0x430B0`, 74% app partition вільно |
 | Стан прошивки | Power-on timing firmware прошита на COM9; flash hash verified, hard reset виконано 2026-09-22 |
 | Виявлені порти | COM9 = нова ESP32-S3; COM3 = Intel AMT, не використовувати |
-| Монтаж аналізатора | PEAK67: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA підтверджено вимірюваннями |
+| Монтаж аналізатора | PEAK67/35: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA; PEAK89: LINE0/1/2→GPIO4/5/6, ролі ще невідомі |
 | Переносимі C-бібліотеки | `C:\VSCode\Peak67`: hardware verified, рекомендовано `peak67_startup()` без power-on прив'язки, commit `d815aca`; `C:\VSCode\Peak35`: 64/64 канали, startup A7/U8 і power-on timing, commit `2bbda9e` |
 | Репозиторії | Аналізатор: `github.com/Alexander11081985/Logic_Analizer`; бібліотеки: GitLab + `github.com/Alexander11081985/peak67` і `/peak35` |
-| Наступний крок | Перевірити бібліотечний startup PEAK35 на реальному приймачі; для PEAK67 абсолютна power-on затримка більше не потрібна |
+| Наступний крок | PEAK89: зняти окремі A1→A2, A2→A3, A7→A8 та A8→B1 captures і визначити CLK/DATA/CS-LE, bit order та довжину кадру |
 
 ## Мета
 
@@ -106,6 +106,22 @@ SPI/M та GND.
 - Python 3.14.6, Tkinter доступний, `pyserial 3.5` установлено.
 
 ## Історія міграції
+
+### 2026-10-07 — додано початковий профіль PEAK89
+
+- Отримано PEAK89 для reverse engineering. З наданого фото підтверджена лише
+  RF-таблиця: 5 бендів A/B/E/F/R по 8 каналів, `8020…8800 МГц`, крок 20 МГц.
+- У Python GUI додано `PEAK89 3-wire reverse engineering`: edge events,
+  20 мс після trigger, timeout 10 с, `P89_LINE0…2` на GPIO4…GPIO6.
+- Профіль навмисно protocol-neutral: не переносити кадр, IF/offset, bit order,
+  полярність третьої лінії, таймінги чи startup від PEAK35/PEAK67.
+- Firmware ESP32-S3 не змінюється і перепрошивка не потрібна: наявний v2
+  firmware вже захоплює 8 GPIO в raw та edge-event режимах, а profile/decoder
+  знаходяться у desktop Python GUI.
+- Таблиця PEAK89: A=`8020…8160`, B=`8180…8320`, E=`8340…8480`,
+  F=`8500…8640`, R=`8660…8800`; у кожному бенді 8 каналів із кроком 20 МГц.
+- Перший набір доказів: окремі CSV переходів A1→A2, A2→A3, A7→A8 та A8→B1.
+  Якщо trigger CH0 не ловить повний кадр, послідовно повторити з CH1 і CH2.
 
 ### 2026-10-07 — контекст синхронізовано після завершення PEAK35/PEAK67
 

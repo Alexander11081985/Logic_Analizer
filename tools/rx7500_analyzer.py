@@ -49,6 +49,13 @@ PROFILES = {
         "names": ["P35_LINE0", "P35_LINE1", "P35_LINE2", "AUX3",
                   "AUX4", "AUX5", "AUX6", "AUX7"],
     },
+    "PEAK89 3-wire reverse engineering": {
+        "acq": ACQ_EDGE, "rate": 0, "count": 0,
+        "duration": 20_000, "trigger": 0, "edge": TRIGGER_RISING,
+        "timeout": 10_000,
+        "names": ["P89_LINE0", "P89_LINE1", "P89_LINE2", "AUX3",
+                  "AUX4", "AUX5", "AUX6", "AUX7"],
+    },
     "PEAK35 verified raw frame": {
         "acq": ACQ_RAW, "rate": 5_000_000, "count": 8192,
         "duration": 0, "trigger": 1, "edge": TRIGGER_FALLING,
@@ -324,7 +331,7 @@ class AnalyzerApp:
         for index, variable in enumerate(self.channel_visible):
             if self.profile_var.get() == "RX7500 SPI":
                 variable.set(index < 4)
-            elif self.profile_var.get().startswith(("PEAK67", "PEAK35")):
+            elif self.profile_var.get().startswith(("PEAK67", "PEAK35", "PEAK89")):
                 count = 4 if self.profile_var.get() in (
                     "PEAK67 power-on timing",
                     "PEAK35 power-on timing",
@@ -433,6 +440,7 @@ class AnalyzerApp:
         if self.profile_var.get() not in (
             "PEAK67 3-wire reverse engineering",
             "PEAK35 3-wire reverse engineering",
+            "PEAK89 3-wire reverse engineering",
             "PEAK35 verified raw frame",
             "PEAK35 power-on frames",
         ):
@@ -442,7 +450,7 @@ class AnalyzerApp:
             return any(event.changed_mask & peak_mask for event in capture.events)
         rows = capture_transition_rows(capture)
         # Row zero in raw mode describes the initial sample rather than a real
-        # transition, therefore only later rows count as new PEAK67 activity.
+        # transition, therefore only later rows count as new 3-wire activity.
         return any(index != 0 and changed & peak_mask for index, _, changed in rows)
 
     def reanalyze(self, auto_fit: bool = False) -> None:
@@ -454,6 +462,7 @@ class AnalyzerApp:
                 self.analysis = analyze_capture(self.capture, max(0.0, float(self.filter_var.get())))
             elif profile in ("PEAK67 3-wire reverse engineering",
                               "PEAK35 3-wire reverse engineering",
+                              "PEAK89 3-wire reverse engineering",
                               "PEAK35 verified raw frame",
                               "PEAK35 power-on frames"):
                 self.analysis = analyze_peak67(self.capture, max(0.0, float(self.filter_var.get())))
@@ -524,7 +533,7 @@ class AnalyzerApp:
                       f"Frequency: {a['direct_frequency'] or '—'} MHz",
                       f"SPI/M HIGH: {a['mode_high_percent']:.2f}%",
                       f"Verdict: {'VALID' if a['direct_frequency'] and len(a['clk_rising']) == 24 and a['selected_le'] else 'INVALID'}"]
-        elif profile.startswith(("PEAK67", "PEAK35")):
+        elif profile.startswith(("PEAK67", "PEAK35", "PEAK89")):
             def timing_text(stats):
                 if not stats or stats[0] is None:
                     return "—"
@@ -704,7 +713,7 @@ class AnalyzerApp:
                 break
             initial = state
         mapping_names: dict[int, str] = {}
-        if self.profile_var.get().startswith(("PEAK67", "PEAK35")) and self.analysis:
+        if self.profile_var.get().startswith(("PEAK67", "PEAK35", "PEAK89")) and self.analysis:
             for key, role in (("detected_clock_channel", "CLK?"),
                               ("detected_data_channel", "DATA?"),
                               ("detected_control_channel", "LE/CS?")):

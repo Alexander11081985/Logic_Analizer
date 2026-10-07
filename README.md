@@ -1,4 +1,4 @@
-# ESP32-S3 8-channel logic analyzer — RX7500 / PAL / failover
+# ESP32-S3 8-channel logic analyzer — RX7500 / PEAK / PAL / failover
 
 Універсальний цифровий аналізатор для Waveshare ESP32-S3-Zero на чистому
 ESP-IDF v6.0.1. Він зберігає робочий режим RX7500 і додає 8-канальне raw та
@@ -7,6 +7,7 @@ edge-event захоплення для PAL GPIO DAC, PAL field, LM1881/video fai
 
 Arduino та PlatformIO не використовуються. Перед роботою прочитати
 `PROJECT_CONTEXT.md`; точний wire protocol наведений у `PROTOCOL.md`.
+Окремий журнал нового приймача: `PEAK89_PROTOCOL_ANALYSIS.md`.
 
 ## Безпека і піни
 
@@ -48,6 +49,10 @@ flash/PSRAM лініями цієї плати.
   protocol-neutral вимірюваннями, але власними назвами `P35_LINE0…2`.
   Жодні ролі, полярність, довжина кадру або bit order із PEAK67 автоматично
   не переносяться на PEAK35; вони мають бути підтверджені його captures.
+- **PEAK89 3-wire reverse engineering** — початковий нейтральний профіль для
+  нового приймача 8.0–8.8 ГГц. Лінії названі `P89_LINE0…2`; декодер перевіряє
+  всі кандидатні ролі та обидва фронти/порядки бітів без перенесення формули,
+  startup-команд чи таймінгів від PEAK35/PEAK67.
 - **PEAK35 verified raw frame** — після первинного підтвердження ролей:
   raw 5 MHz/8192 samples, CH1 falling trigger, фіксовані назви
   CH0=CLK, CH1=CS, CH2=DATA. Trigger від CS запускає sampling до першого
@@ -120,6 +125,37 @@ time третьої лінії до першого такту. Після пер
 інтервал. До порівняння кількох відомих каналів жоден з варіантів
 MSB/LSB/rising/falling не вважається підтвердженим.
 
+## Перше захоплення PEAK89
+
+Підключити три лінії керування PEAK89 паралельно до штатного контролера:
+
+```text
+PEAK89 control line 0  -> ESP32 GPIO4 / CH0
+PEAK89 control line 1  -> ESP32 GPIO5 / CH1
+PEAK89 control line 2  -> ESP32 GPIO6 / CH2
+PEAK89 GND             -> ESP32 GND
+```
+
+Перед підключенням перевірити, що HIGH не перевищує 3,3 В. У GUI вибрати
+`PEAK89 3-wire reverse engineering`, залишити `Auto` вимкненим, натиснути
+`Capture` і один раз змінити канал. Якщо CH0 не дає повного кадру або виникає
+timeout, повторити з trigger CH1, а потім CH2. Для першого аналізу достатньо
+окремих CSV переходів A1→A2, A2→A3, A7→A8 та A8→B1. У назві CSV обов'язково
+вказувати цільовий канал.
+
+Підтверджена з наданої таблиці частотна сітка PEAK89:
+
+| Band | CH1 | CH2 | CH3 | CH4 | CH5 | CH6 | CH7 | CH8 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| A | 8020 | 8040 | 8060 | 8080 | 8100 | 8120 | 8140 | 8160 |
+| B | 8180 | 8200 | 8220 | 8240 | 8260 | 8280 | 8300 | 8320 |
+| E | 8340 | 8360 | 8380 | 8400 | 8420 | 8440 | 8460 | 8480 |
+| F | 8500 | 8520 | 8540 | 8560 | 8580 | 8600 | 8620 | 8640 |
+| R | 8660 | 8680 | 8700 | 8720 | 8740 | 8760 | 8780 | 8800 |
+
+Це 40 каналів із кроком 20 МГц. Формат команди, IF/offset, bit order,
+полярність третьої лінії та startup-послідовність поки не підтверджені.
+
 ## Вимірювання затримки після подачі живлення
 
 ESP32-S3 спочатку живиться окремо від USB і вже має бути підключений до GUI.
@@ -173,11 +209,13 @@ py -3 tools\test_protocol.py
 - `tools/pal_analyzer.py` — незалежний PAL line/field/failover analysis;
 - `tools/test_protocol.py` — v1/v2, CRC, PAL synthetic regression;
 - `PROTOCOL.md` — точний binary layout;
-- `PROJECT_CONTEXT.md` — підтверджений стан і журнал.
+- `PROJECT_CONTEXT.md` — підтверджений стан і журнал;
+- `PEAK89_PROTOCOL_ANALYSIS.md` — таблиця, план captures і журнал PEAK89.
 
 ## Поточна перевірка
 
-- 17 Python protocol/PAL/PEAK67 tests: PASS.
+- 18 Python protocol/PAL/PEAK tests: PASS.
 - ESP-IDF v6.0.1 build: PASS; application `0x430e0`, 74% partition free.
 - Нову версію навмисно не прошито без дозволу користувача.
-- Нові 8-channel/PAL/PEAK67 edge режими ще не перевірені на реальному монтажі.
+- PEAK67/PEAK35 capture-профілі перевірені реальними вимірюваннями; PEAK89
+  profile пройшов software validation і очікує перший hardware capture.
