@@ -15,15 +15,15 @@
 | IDF_PATH | `C:\esp\v6.0.1\esp-idf` |
 | IDF_TOOLS_PATH | `C:\Espressif\tools` |
 | Target | `esp32s3` |
-| Стан коду | v1 RX7500 збережено; v2 raw/edge, PAL/failover, PEAK67/PEAK35/PEAK89 profiles; Python GUI декодує та зберігає captures |
+| Стан коду | v1 RX7500 збережено; v2 raw/edge, PAL/failover, PEAK67/PEAK35/PEAK89/THOR78 profiles; Python GUI декодує та зберігає captures |
 | Остання збірка | ESP-IDF v6.0.1 — SUCCESS без warning, 2026-09-22 |
 | Application binary | `0x430B0`, 74% app partition вільно |
 | Стан прошивки | Power-on timing firmware прошита на COM9; flash hash verified, hard reset виконано 2026-09-22 |
 | Виявлені порти | COM9 = нова ESP32-S3; COM3 = Intel AMT, не використовувати |
-| Монтаж аналізатора | PEAK67/35: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA; PEAK89: LINE0/1/2→GPIO4/5/6, ролі ще невідомі |
+| Монтаж аналізатора | PEAK67/35: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA; PEAK89/THOR78: LINE0/1/2→GPIO4/5/6, ролі ще невідомі |
 | Переносимі C-бібліотеки | `C:\VSCode\Peak67`: hardware verified, рекомендовано `peak67_startup()` без power-on прив'язки, commit `d815aca`; `C:\VSCode\Peak35`: 64/64 канали, startup A7/U8 і power-on timing, commit `2bbda9e` |
 | Репозиторії | Аналізатор: `github.com/Alexander11081985/Logic_Analizer`; бібліотеки: GitLab + `github.com/Alexander11081985/peak67` і `/peak35` |
-| Наступний крок | PEAK89: зняти окремі A1→A2, A2→A3, A7→A8 та A8→B1 captures і визначити CLK/DATA/CS-LE, bit order та довжину кадру |
+| Наступний крок | PEAK89 і THOR78: зняти окремі A1→A2, A2→A3, A7→A8 та A8→B1 captures; для THOR78 також E7→E8 і E8→F1 |
 
 ## Мета
 
@@ -106,6 +106,18 @@ SPI/M та GND.
 - Python 3.14.6, Tkinter доступний, `pyserial 3.5` установлено.
 
 ## Історія міграції
+
+### 2026-10-07 — додано початковий профіль THOR78
+
+- З наданого фото переписано 5×8 каналів у діапазоні `7200…8000 МГц`.
+- Зафіксовано аномалію джерела без виправлення: E7=`7640`, E8=`7680`, отже
+  `7660 МГц` відсутня та крок E7→E8 дорівнює 40 МГц. Перевірити на залізі.
+- У GUI додано `THOR78 3-wire reverse engineering`: edge events 20 мс,
+  timeout 10 с, невідомі `T78_LINE0…2` на GPIO4…GPIO6.
+- Firmware ESP32-S3 не змінюється; профіль і routing реалізовані в Python GUI.
+- Створено `THOR78_PROTOCOL_ANALYSIS.md`. Перші captures: A1→A2, A2→A3,
+  A7→A8, A8→B1; для перевірки таблиці додатково E7→E8 і E8→F1.
+- Не переносити ролі ліній, формат кадру, формулу чи startup інших приймачів.
 
 ### 2026-10-07 — додано початковий профіль PEAK89
 
