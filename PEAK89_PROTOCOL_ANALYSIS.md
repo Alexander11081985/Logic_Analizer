@@ -47,6 +47,64 @@ HIGH мультиметром або осцилографом; напряму д
 CH1 falling trigger, glitch filter 400 ns. Він охоплює 1638,4 мкс і не
 пропускає швидкі CLK edges, які губив програмний GPIO edge ISR.
 
+## Вимірювання запуску від подачі живлення
+
+Для startup потрібні два окремі captures. Вони відповідають двом різним
+питанням і не замінюють один одного.
+
+Монтаж:
+
+```text
+PEAK89 CLK              -> ESP32-S3 GPIO4 / CH0
+PEAK89 CS               -> ESP32-S3 GPIO5 / CH1
+PEAK89 DATA             -> ESP32-S3 GPIO6 / CH2
+PEAK89 internal 3V3     -> 4.7...10 kOhm -> ESP32-S3 GPIO7 / CH3
+PEAK89 GND              -> ESP32-S3 GND
+```
+
+CH3 підключається саме до внутрішньої комутованої шини 3,3 В приймача, яка
+падає до 0 В при його вимкненні. Постійна 3,3 В шина ESP32 для цього не
+підходить. GPIO7 працює лише як sense-вхід; живити PEAK89 через нього не можна.
+
+### Capture 1 — абсолютний power-on timing
+
+1. Вимкнути живлення PEAK89, ESP32 залишити увімкненою.
+2. Вибрати `PEAK89 power-on timing`: edge events, duration 1 s, trigger CH3
+   rising, timeout 60 s, видимі CH0...CH3.
+3. Натиснути `Capture`, дочекатися `ARMED`, потім увімкнути PEAK89.
+4. Зберегти CSV як `PEAK89_BOOT_TIMING_<channel>.csv`.
+
+Цей capture вимірює `3V3 rising -> CS falling`, `-> first CLK rising` і
+`-> CS rising/commit`. Edge engine придатний для абсолютної затримки, але
+не використовується як остаточне джерело всіх швидких CLK-бітів.
+
+### Capture 2 — точні startup frames
+
+1. Вимкнути PEAK89 і дочекатися падіння його 3V3 на CH3.
+2. Вибрати `PEAK89 power-on frames`: raw 5 MHz, 8192 samples, power gate
+   CH3 rising, остаточний trigger CH1/CS falling, timeout 60 s, glitch filter
+   400 ns.
+3. Натиснути `Capture`, дочекатися `ARMED`, потім увімкнути PEAK89.
+4. ESP32 спочатку відкриє gate по CH3 rising, проігнорує весь шум на
+   CLK/CS/DATA до живлення і почне raw sampling лише від першого CS falling.
+5. Зберегти CSV як `PEAK89_BOOT_FRAMES_<channel>.csv`.
+
+Raw-вікно 1638,4 мкс починається з першого active-LOW CS і точно захоплює
+перше startup-слово. Якщо startup містить кілька кадрів із великими паузами,
+додатково використовуємо timing capture для визначення їх кількості та часу,
+а кожний потрібний кадр дочитуємо окремим raw capture.
+
+Мінімальний набір для порівняння: два повних power cycles після збереження
+різних каналів, наприклад A1 і B1. Це відділить постійні initialization words
+від слова відновлення останнього каналу. До отримання цих CSV startup sequence
+у бібліотеці `C:\VSCode\Peak89` не фіксується припущенням.
+
+Причина обов'язкового power gate: captures `logic_capture_42.csv` і
+`logic_capture_43.csv` при вимкненому PEAK89 показали синхронні хибні
+провали на CLK/CS/DATA. Частина CS LOW-провалів триває до 98,6 мкс. GUI
+glitch filter працює після capture і не може скасувати trigger, який уже
+стався, тому простий CH1 falling без CH3 непридатний для power-on capture.
+
 ## Підтверджений Band A
 
 Raw-captures `A1.csv`...`A8.csv` зняті при 5 MHz. Після усунення коротких

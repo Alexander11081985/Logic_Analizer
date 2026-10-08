@@ -817,6 +817,30 @@ LOW=1.0/1.045/1.2 us, HIGH=4.4/5.052/5.2 us, останній sampling point→C
 rising=5.0 us. Формула `(((RF-477)&~1)<<14)|0x08` тепер доведена через
 межу A→B. Наступні контрольні межі: B8→E1, E8→F1, F8→R1 та endpoint R8.
 
+2026-10-08: для бібліотек PEAK35 і PEAK67 створені окремі гілки
+`hardware-spi`; основні `main` залишені як bit-bang версії. Обидві SPI-
+гілки переведені на callback `spi_write32`, Mode 3 (CPOL=1, CPHA=1),
+MSB-first, 32-bit word, 200 kHz і ручний active-LOW CS. Інструкції,
+STM32 HAL приклади та unit-тести оновлені. Строга C99-компіляція
+`-Wall -Wextra -Werror` пройшла; повний CMake link-test не запустився
+через відому проблему MinGW з пробілом у Windows user path, не через
+помилку джерел. PEAK35 commit `274c6f8`, PEAK67 commit `1e3b795`;
+обидва хеші запушені у GitLab і GitHub. Наступний етап — окрема
+бібліотека PEAK89 після контрольних вимірів меж та endpoint.
+
+2026-10-08: перша спроба PEAK89 power-on raw без 3V3 gate виявилася
+непридатною. `logic_capture_42.csv` і `logic_capture_43.csv`, зняті при
+вимкненому приймачі, містять синхронний шум на CLK/CS/DATA; CS LOW-провали
+досягають 40,8 і 98,6 мкс. Post-capture glitch filter 400 ns не запобігає
+хибному апаратному trigger. Реалізовано двоступеневий raw trigger: byte 15
+config command кодує optional gate channel як `channel+1`; для `PEAK89
+power-on frames` gate=CH3/GPIO7 rising, а остаточний trigger=CH1/GPIO5 CS
+falling. До відкриття gate прошивка ігнорує всі переходи CLK/CS/DATA.
+Монтаж: CH0=CLK, CH1=CS, CH2=DATA, CH3=внутрішня комутована 3V3 PEAK89
+через 4,7...10 кОм, спільна GND. Абсолютний timing вимірювати не обов'язково,
+але CH3 тепер потрібен як логічний дозвіл startup capture. Потрібні power
+cycles щонайменше для A1 і B1.
+
 ## Правило оновлення
 
 Повний опис розташування, структури, поточного функціоналу, обмежень і

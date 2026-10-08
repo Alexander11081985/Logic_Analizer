@@ -233,10 +233,14 @@ def build_config_command(*, request_id: int, acquisition: int,
                          sample_rate_hz: int = 0, sample_count: int = 0,
                          duration_us: int = 0, trigger_channel: int = 0,
                          trigger_edge: int = TRIGGER_RISING,
-                         trigger_timeout_ms: int = 1000) -> bytes:
+                         trigger_timeout_ms: int = 1000,
+                         trigger_gate_channel: int | None = None) -> bytes:
+    if trigger_gate_channel is not None and not 0 <= trigger_gate_channel < 8:
+        raise ValueError("trigger_gate_channel must be 0..7 or None")
+    gate_code = 0 if trigger_gate_channel is None else trigger_gate_channel + 1
     prefix = COMMAND_V2.pack(COMMAND_MAGIC, VERSION_V2, 1, COMMAND_V2_SIZE,
                              request_id, acquisition, trigger_channel,
-                             trigger_edge, 0, sample_rate_hz, sample_count,
+                             trigger_edge, gate_code, sample_rate_hz, sample_count,
                              duration_us, trigger_timeout_ms, 0)
     crc = zlib.crc32(prefix[:-4]) & 0xFFFFFFFF
     return prefix[:-4] + struct.pack("<I", crc)

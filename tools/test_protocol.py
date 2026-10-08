@@ -186,6 +186,17 @@ class ProtocolTests(unittest.TestCase):
                                        trigger_channel=0, trigger_edge=TRIGGER_FALLING)
         self.assertEqual(len(command), 36)
         self.assertEqual(command[:4], b"LAC2")
+        self.assertEqual(command[15], 0)
+        self.assertNotEqual(struct.unpack_from("<I", command, 32)[0], 0)
+
+    def test_config_command_encodes_power_gate_channel(self):
+        command = build_config_command(
+            request_id=6, acquisition=ACQ_RAW,
+            sample_rate_hz=5_000_000, sample_count=8192,
+            trigger_channel=1, trigger_edge=TRIGGER_FALLING,
+            trigger_gate_channel=3,
+        )
+        self.assertEqual(command[15], 4)
         self.assertNotEqual(struct.unpack_from("<I", command, 32)[0], 0)
 
 

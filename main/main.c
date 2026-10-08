@@ -65,6 +65,7 @@ typedef struct {
     uint8_t acquisition;
     uint8_t trigger_channel;
     uint8_t trigger_edge;
+    uint8_t trigger_gate_code;
     bool legacy;
 } capture_config_t;
 
@@ -90,6 +91,7 @@ static volatile bool s_armed;
 static volatile bool s_capture_busy;
 static volatile bool s_capture_ready;
 static volatile bool s_triggered;
+static volatile bool s_trigger_gate_open;
 static volatile uint32_t s_cycles_per_sample;
 static volatile uint32_t s_edge_count;
 static volatile uint32_t s_lost_events;
@@ -122,6 +124,16 @@ static inline bool IRAM_ATTR trigger_matches(uint8_t previous, uint8_t current)
     return s_config.trigger_edge == TRIGGER_EITHER ||
            (s_config.trigger_edge == TRIGGER_RISING && now) ||
            (s_config.trigger_edge == TRIGGER_FALLING && !now);
+}
+
+static inline bool IRAM_ATTR trigger_gate_rises(uint8_t previous, uint8_t current)
+{
+    if (s_config.trigger_gate_code == 0U ||
+        s_config.trigger_gate_code > CHANNEL_COUNT) {
+        return false;
+    }
+    const uint8_t mask = (uint8_t)(1U << (s_config.trigger_gate_code - 1U));
+    return (previous & mask) == 0U && (current & mask) != 0U;
 }
 
 static void IRAM_ATTR capture_raw_from_isr(uint8_t first_state)
@@ -161,6 +173,12 @@ static void IRAM_ATTR analyzer_gpio_isr(void *argument)
     s_edge_last_state = current;
 
     if (s_config.acquisition == ACQ_RAW) {
+        if (!s_trigger_gate_open) {
+            if (trigger_gate_rises(previous, current)) {
+                s_trigger_gate_open = true;
+            }
+            return;
+        }
         if (trigger_matches(previous, current)) {
             capture_raw_from_isr(current);
         }
@@ -323,6 +341,7 @@ static void arm_capture(const capture_config_t *configuration)
     s_config = *configuration;
     s_capture_ready = false;
     s_triggered = false;
+    s_trigger_gate_open = configuration->trigger_gate_code == 0U;
     s_edge_count = 0U;
     s_lost_events = 0U;
     s_capture_duration_ticks = 0U;
@@ -362,6 +381,14 @@ static void arm_capture(const capture_config_t *configuration)
          */
         ESP_ERROR_CHECK(gpio_set_intr_type(pin, GPIO_INTR_ANYEDGE));
         ESP_ERROR_CHECK(gpio_intr_enable(pin));
+        if (s_config.trigger_gate_code > 0U) {
+            const uint8_t gate_channel = s_config.trigger_gate_code - 1U;
+            if (gate_channel != s_config.trigger_channel) {
+                const gpio_num_t gate_pin = s_channel_gpio[gate_channel];
+                ESP_ERROR_CHECK(gpio_set_intr_type(gate_pin, GPIO_INTR_ANYEDGE));
+                ESP_ERROR_CHECK(gpio_intr_enable(gate_pin));
+            }
+        }
     } else {
         for (size_t channel = 0; channel < CHANNEL_COUNT; ++channel) {
             ESP_ERROR_CHECK(gpio_set_intr_type(s_channel_gpio[channel], GPIO_INTR_ANYEDGE));
@@ -381,6 +408,7 @@ static void arm_legacy(void)
         .acquisition = ACQ_RAW,
         .trigger_channel = 0U,
         .trigger_edge = TRIGGER_RISING,
+        .trigger_gate_code = 0U,
         .legacy = true,
     };
     arm_capture(&legacy);
@@ -391,7 +419,15 @@ static bool config_is_valid(const capture_config_t *config)
     const bool trigger_valid = (config->trigger_channel < CHANNEL_COUNT ||
                                 config->trigger_channel == TRIGGER_CHANNEL_IMMEDIATE) &&
                                config->trigger_edge <= TRIGGER_IMMEDIATE;
-    if (!trigger_valid || config->trigger_timeout_ms > 60000U) {
+    const bool gate_valid = config->trigger_gate_code <= CHANNEL_COUNT;
+    if (!trigger_valid || !gate_valid || config->trigger_timeout_ms > 60000U) {
+        return false;
+    }
+    if (config->trigger_gate_code > 0U &&
+        (config->acquisition != ACQ_RAW ||
+         config->trigger_channel >= CHANNEL_COUNT ||
+         config->trigger_edge == TRIGGER_IMMEDIATE ||
+         config->trigger_channel == config->trigger_gate_code - 1U)) {
         return false;
     }
     if (config->acquisition == ACQ_RAW) {
@@ -423,6 +459,7 @@ static void process_v2_command(void)
         .acquisition = command[12],
         .trigger_channel = command[13],
         .trigger_edge = command[14],
+        .trigger_gate_code = command[15],
         .legacy = false,
     };
     if (config_is_valid(&config)) {

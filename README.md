@@ -74,6 +74,15 @@ flash/PSRAM лініями цієї плати.
   power-on timing: raw 5 MHz/8192 samples, trigger CH1/CS falling, timeout
   60 s. Вікно 1,6384 мс починається від першого кадру і записує всі CLK/DATA
   біти startup burst; CH3 у цьому capture вже постійно HIGH.
+- **PEAK89 power-on timing** — edge-event capture 1 s, trigger CH3/GPIO7
+  rising, timeout 60 s. Монтаж: CH0=CLK, CH1=CS, CH2=DATA, CH3=внутрішня
+  комутована шина 3V3 PEAK89 через послідовний резистор 4,7…10 кОм.
+- **PEAK89 power-on frames** — raw 5 MHz/8192 samples, trigger CH1/CS
+  falling, timeout 60 s, glitch filter 400 ns, але trigger дозволяється лише
+  після CH3/GPIO7 rising. Firmware ігнорує плаваючі CLK/CS/DATA вимкненого
+  приймача, відкриває power gate по внутрішній 3V3 PEAK89 і лише тоді чекає
+  CS falling. Запуск повторити для двох збережених каналів, щоб відрізнити
+  initialization words від restore-channel word.
 - **PAL GPIO DAC / line** — raw 5 MHz, CH0 falling; відновлення
   `DAC=CH0|(CH1<<1)…|(CH5<<5)`, step-графік, коди 0/19/41/63, автоматичний
   пошук лінії та вимір 64/4.7/5.8/52/1.5 µs. Реальна роздільна здатність при

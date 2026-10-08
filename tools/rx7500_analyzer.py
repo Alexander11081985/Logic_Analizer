@@ -63,6 +63,20 @@ PROFILES = {
         "names": ["P89_SCL", "P89_CS", "P89_DATA", "AUX3",
                   "AUX4", "AUX5", "AUX6", "AUX7"],
     },
+    "PEAK89 power-on timing": {
+        "acq": ACQ_EDGE, "rate": 0, "count": 0,
+        "duration": 1_000_000, "trigger": 3, "edge": TRIGGER_RISING,
+        "timeout": 60_000, "filter": 400,
+        "names": ["P89_CLK", "P89_CS", "P89_DATA", "P89_3V3",
+                  "AUX4", "AUX5", "AUX6", "AUX7"],
+    },
+    "PEAK89 power-on frames": {
+        "acq": ACQ_RAW, "rate": 5_000_000, "count": 8192,
+        "duration": 0, "trigger": 1, "edge": TRIGGER_FALLING,
+        "timeout": 60_000, "filter": 400, "gate": 3,
+        "names": ["P89_CLK", "P89_CS", "P89_DATA", "P89_3V3",
+                  "AUX4", "AUX5", "AUX6", "AUX7"],
+    },
     "THOR78 3-wire reverse engineering": {
         "acq": ACQ_EDGE, "rate": 0, "count": 0,
         "duration": 20_000, "trigger": 0, "edge": TRIGGER_RISING,
@@ -351,6 +365,8 @@ class AnalyzerApp:
                     "PEAK67 power-on timing",
                     "PEAK35 power-on timing",
                     "PEAK35 power-on frames",
+                    "PEAK89 power-on timing",
+                    "PEAK89 power-on frames",
                 ) else 3
                 variable.set(index < count)
             else:
@@ -391,6 +407,7 @@ class AnalyzerApp:
 
     def _configuration(self) -> bytes:
         acquisition = ACQ_RAW if self.acq_var.get() == "Raw samples" else ACQ_EDGE
+        profile = PROFILES.get(self.profile_var.get(), {})
         trigger = (TRIGGER_CHANNEL_IMMEDIATE if self.trigger_var.get() == "Immediate"
                    else int(self.trigger_var.get()[2:]))
         edge = EDGE_VALUES[self.edge_var.get()]
@@ -404,6 +421,7 @@ class AnalyzerApp:
             duration_us=int(self.duration_var.get()) if acquisition == ACQ_EDGE else 0,
             trigger_channel=trigger, trigger_edge=edge,
             trigger_timeout_ms=int(self.timeout_var.get()),
+            trigger_gate_channel=profile.get("gate"),
         )
 
     def capture_once(self) -> None:
@@ -457,6 +475,7 @@ class AnalyzerApp:
             "PEAK35 3-wire reverse engineering",
             "PEAK89 3-wire reverse engineering",
             "PEAK89 raw frame",
+            "PEAK89 power-on frames",
             "THOR78 3-wire reverse engineering",
             "PEAK35 verified raw frame",
             "PEAK35 power-on frames",
@@ -481,12 +500,14 @@ class AnalyzerApp:
                               "PEAK35 3-wire reverse engineering",
                               "PEAK89 3-wire reverse engineering",
                               "PEAK89 raw frame",
+                              "PEAK89 power-on frames",
                               "THOR78 3-wire reverse engineering",
                               "PEAK35 verified raw frame",
                               "PEAK35 power-on frames"):
                 self.analysis = analyze_peak67(self.capture, max(0.0, float(self.filter_var.get())))
             elif profile in ("PEAK67 power-on timing",
-                              "PEAK35 power-on timing"):
+                              "PEAK35 power-on timing",
+                              "PEAK89 power-on timing"):
                 self.analysis = analyze_peak67_power_on(
                     self.capture, max(0.0, float(self.filter_var.get())))
             elif profile == "PAL GPIO DAC / line":
@@ -559,7 +580,8 @@ class AnalyzerApp:
                 return f"{stats[0]:.3f}/{stats[1]:.3f}/{stats[2]:.3f} µs"
 
             if profile in ("PEAK67 power-on timing",
-                            "PEAK35 power-on timing"):
+                            "PEAK35 power-on timing",
+                            "PEAK89 power-on timing"):
                 power_time = a.get("power_rise_us")
                 frame = a.get("first_valid_frame")
                 lines += [
