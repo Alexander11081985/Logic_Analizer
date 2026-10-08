@@ -23,7 +23,7 @@
 | Монтаж аналізатора | PEAK67/35/89: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA; THOR78: LINE0/1/2→GPIO4/5/6, ролі ще невідомі |
 | Переносимі C-бібліотеки | `C:\VSCode\Peak67`: hardware verified, рекомендовано `peak67_startup()` без power-on прив'язки, commit `d815aca`; `C:\VSCode\Peak35`: 64/64 канали, startup A7/U8 і power-on timing, commit `2bbda9e` |
 | Репозиторії | Аналізатор: `github.com/Alexander11081985/Logic_Analizer`; бібліотеки: GitLab + `github.com/Alexander11081985/peak67` і `/peak35` |
-| Наступний крок | PEAK89: зняти raw A8→B1 для перевірки формули поза Band A; THOR78: A1→A2, A2→A3, A7→A8, A8→B1, E7→E8 і E8→F1 |
+| Наступний крок | PEAK89: контрольні raw B8→E1, E8→F1, F8→R1 і R8; THOR78: A1→A2, A2→A3, A7→A8, A8→B1, E7→E8 і E8→F1 |
 
 ## Мета
 
@@ -809,6 +809,13 @@ LOW≈1.0...1.2 us, HIGH≈5.0...5.2 us, last CLK sample→CS rising=5.0...5.2 u
 Отже PEAK89 належить до тієї ж 3-wire/32-bit сім'ї, що PEAK67/PEAK35, і за
 формулою найближчий саме до PEAK67. Межа доказу — Band A; наступний capture
 A8→B1 повинен перевірити прогноз B1/8180 MHz=`0x07858008`.
+
+PEAK89 raw A8→B1 підтвердив прогноз без відхилень: B1/8180 MHz передає
+32-bit MSB-first `0x07858008`, рівно `A8 + 0x00050000`. Повний capture:
+32 rising/31 falling CLK states, period min/avg/max=5.4/6.097/6.4 us,
+LOW=1.0/1.045/1.2 us, HIGH=4.4/5.052/5.2 us, останній sampling point→CS
+rising=5.0 us. Формула `(((RF-477)&~1)<<14)|0x08` тепер доведена через
+межу A→B. Наступні контрольні межі: B8→E1, E8→F1, F8→R1 та endpoint R8.
 
 ## Правило оновлення
 
