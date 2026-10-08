@@ -72,7 +72,7 @@ PROFILES = {
     },
     "PEAK89 power-on frames": {
         "acq": ACQ_RAW, "rate": 5_000_000, "count": 8192,
-        "duration": 0, "trigger": 1, "edge": TRIGGER_FALLING,
+        "duration": 0, "trigger": 0, "edge": TRIGGER_RISING,
         "timeout": 60_000, "filter": 400, "gate": 4,
         "names": ["P89_CLK", "P89_CS", "P89_DATA", "AUX3",
                   "P89_3V3", "AUX5", "AUX6", "AUX7"],

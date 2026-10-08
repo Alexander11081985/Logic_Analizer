@@ -77,8 +77,8 @@ flash/PSRAM лініями цієї плати.
 - **PEAK89 power-on timing** — edge-event capture 1 s, trigger CH3/GPIO7
   rising, timeout 60 s. Монтаж: CH0=CLK, CH1=CS, CH2=DATA, CH3=внутрішня
   комутована шина 3V3 PEAK89 через послідовний резистор 4,7…10 кОм.
-- **PEAK89 power-on frames** — raw 5 MHz/8192 samples, trigger CH1/CS
-  falling, timeout 60 s, glitch filter 400 ns, але trigger дозволяється лише
+- **PEAK89 power-on frames** — raw 5 MHz/8192 samples, trigger CH0/CLK
+  rising, timeout 60 s, glitch filter 400 ns, але trigger дозволяється лише
   після стабільного CH4/GPIO8 HIGH протягом 1 мс. Firmware вмикає внутрішню
   pull-down GPIO8, ігнорує плаваючі CLK/CS/DATA вимкненого приймача, відкриває
   power gate по внутрішній 3V3 PEAK89 і лише тоді чекає CS falling. Запуск
