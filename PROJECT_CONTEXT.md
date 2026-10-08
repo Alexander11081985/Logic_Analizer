@@ -764,6 +764,14 @@ RX7500 до `ChannelTable_FindNearest()`. Відомий точний збіг �
 без exact/tolerance-confirmed match показувати `CUSTOM`, не nearest channel.
 Майбутня структура: frequency + alias array `{source, band, channel}`.
 
+2026-10-08: поточний ESP32-S3 логічний аналізатор з commit `dcfee90`
+успішно зібрано під ESP-IDF v6.0.1 і прошито на Waveshare ESP32-S3 Zero
+через COM8 (USB VID:PID `303A:1001`, MAC `24:ec:4a:10:3e:10`). Розмір
+application image `0x430B0` bytes; bootloader, partition table і application
+пройшли перевірку hash, після запису виконано hard reset. COM8 повторно
+з'явився. `smoke_test_device.py COM8 --timeout 8` відкрив transport, але
+закінчився `NO_TRIGGER`, що нормально без під'єднаного зовнішнього CLK.
+
 ## Правило оновлення
 
 Повний опис розташування, структури, поточного функціоналу, обмежень і
