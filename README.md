@@ -149,7 +149,8 @@ timeout, повторити з trigger CH1, а потім CH2. Для першо
 вказувати цільовий канал.
 
 Якщо edge-capture показує лише кілька нерегулярних імпульсів SCL, використати
-`PEAK89 raw frame`: 5 MHz, 8192 samples, trigger CH1/CS falling. Безперервне
+`PEAK89 raw frame`: 5 MHz, 8192 samples, trigger CH1/CS falling, glitch filter
+400 ns. Безперервне
 вікно має 200 ns/sample і 1638.4 us загальної тривалості, тому воно надійніше
 за GPIO edge ISR для швидкого тактування та охоплює весь спостережений
 приблизно 194-us кадр. Для raw capture прийняте робоче зіставлення:

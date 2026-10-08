@@ -790,6 +790,15 @@ frame`: raw 5 MHz, 8192 samples (200 ns/sample, 1638.4 us window), trigger
 CH1 falling, CH0=SCL/CH1=CS/CH2=DATA як робоча перевірювана гіпотеза. Саме
 raw capture тепер є наступним вимірюванням; ESP32 перепрошивати не потрібно.
 
+PEAK89 raw `A1.csv` успішний: файл не порожній (8963 bytes, 80 transition
+rows), графік містить повний clock burst. При glitch filter 400 ns декодер
+отримує CH0=SCL, CH1=CS, CH2=DATA; 32 rising і 31 falling SCL edges, clock
+period min/avg/max=6.0/6.123/6.4 us, LOW=1.0/1.065/1.2 us,
+HIGH=5.0/5.058/5.2 us. Без filter короткі 200-ns завади на CS/DATA ламали
+автовизначення ролей. Виявлено GUI bug: новий `PEAK89 raw frame` не був
+доданий у точну routing-таблицю аналізу, тому waveform/CSV існували, але
+ліва панель показувала `—`; routing виправлено, default filter=400 ns.
+
 ## Правило оновлення
 
 Повний опис розташування, структури, поточного функціоналу, обмежень і

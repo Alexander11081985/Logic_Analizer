@@ -59,7 +59,7 @@ PROFILES = {
     "PEAK89 raw frame": {
         "acq": ACQ_RAW, "rate": 5_000_000, "count": 8192,
         "duration": 0, "trigger": 1, "edge": TRIGGER_FALLING,
-        "timeout": 10_000,
+        "timeout": 10_000, "filter": 400,
         "names": ["P89_SCL", "P89_CS", "P89_DATA", "AUX3",
                   "AUX4", "AUX5", "AUX6", "AUX7"],
     },
@@ -338,6 +338,7 @@ class AnalyzerApp:
         self.count_var.set(str(profile["count"]))
         self.duration_var.set(str(profile["duration"]))
         self.timeout_var.set(str(profile.get("timeout", 1000)))
+        self.filter_var.set(str(profile.get("filter", 0)))
         self.trigger_var.set(f"CH{profile['trigger']}")
         self.edge_var.set(EDGE_NAMES[profile["edge"]])
         for variable, name in zip(self.channel_names, profile["names"]):
@@ -455,6 +456,7 @@ class AnalyzerApp:
             "PEAK67 3-wire reverse engineering",
             "PEAK35 3-wire reverse engineering",
             "PEAK89 3-wire reverse engineering",
+            "PEAK89 raw frame",
             "THOR78 3-wire reverse engineering",
             "PEAK35 verified raw frame",
             "PEAK35 power-on frames",
@@ -478,6 +480,7 @@ class AnalyzerApp:
             elif profile in ("PEAK67 3-wire reverse engineering",
                               "PEAK35 3-wire reverse engineering",
                               "PEAK89 3-wire reverse engineering",
+                              "PEAK89 raw frame",
                               "THOR78 3-wire reverse engineering",
                               "PEAK35 verified raw frame",
                               "PEAK35 power-on frames"):
