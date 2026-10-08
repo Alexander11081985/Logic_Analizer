@@ -58,13 +58,13 @@ CH1 falling trigger, glitch filter 400 ns. Він охоплює 1638,4 мкс �
 PEAK89 CLK              -> ESP32-S3 GPIO4 / CH0
 PEAK89 CS               -> ESP32-S3 GPIO5 / CH1
 PEAK89 DATA             -> ESP32-S3 GPIO6 / CH2
-PEAK89 internal 3V3     -> 4.7...10 kOhm -> ESP32-S3 GPIO7 / CH3
+PEAK89 internal 3V3     -> 4.7...10 kOhm -> ESP32-S3 GPIO8 / CH4
 PEAK89 GND              -> ESP32-S3 GND
 ```
 
-CH3 підключається саме до внутрішньої комутованої шини 3,3 В приймача, яка
+CH4 підключається саме до внутрішньої комутованої шини 3,3 В приймача, яка
 падає до 0 В при його вимкненні. Постійна 3,3 В шина ESP32 для цього не
-підходить. GPIO7 працює лише як sense-вхід; живити PEAK89 через нього не можна.
+підходить. GPIO8 працює лише як sense-вхід; живити PEAK89 через нього не можна.
 
 ### Capture 1 — абсолютний power-on timing
 
@@ -77,16 +77,19 @@ CH3 підключається саме до внутрішньої комуто
 Цей capture вимірює `3V3 rising -> CS falling`, `-> first CLK rising` і
 `-> CS rising/commit`. Edge engine придатний для абсолютної затримки, але
 не використовується як остаточне джерело всіх швидких CLK-бітів.
+Цей необов'язковий старий timing-профіль все ще використовує GPIO7/CH3;
+для нього sense-провід треба було б тимчасово повернути на GPIO7. Для
+поточного точного raw-вимірювання він не використовується.
 
 ### Capture 2 — точні startup frames
 
-1. Вимкнути PEAK89 і дочекатися падіння його 3V3 на CH3.
+1. Вимкнути PEAK89 і дочекатися падіння його 3V3 на CH4/GPIO8.
 2. Вибрати `PEAK89 power-on frames`: raw 5 MHz, 8192 samples, power gate
-   CH3 HIGH стабільно не менше 1 мс, остаточний trigger CH1/CS falling,
+   CH4 HIGH стабільно не менше 1 мс, остаточний trigger CH1/CS falling,
    timeout 60 s, glitch filter 400 ns. Під час очікування firmware вмикає
-   внутрішню pull-down GPIO7, тому вимкнена шина 3V3 не повинна плавати.
+   внутрішню pull-down GPIO8, тому вимкнена шина 3V3 не повинна плавати.
 3. Натиснути `Capture`, дочекатися `ARMED`, потім увімкнути PEAK89.
-4. ESP32 відкриє gate лише після стабільного CH3 HIGH, проігнорує весь шум на
+4. ESP32 відкриє gate лише після стабільного CH4 HIGH, проігнорує весь шум на
    CLK/CS/DATA до живлення і почне raw sampling лише від першого CS falling.
 5. Зберегти CSV як `PEAK89_BOOT_FRAMES_<channel>.csv`.
 
@@ -104,7 +107,7 @@ Raw-вікно 1638,4 мкс починається з першого active-LOW
 `logic_capture_43.csv` при вимкненому PEAK89 показали синхронні хибні
 провали на CLK/CS/DATA. Частина CS LOW-провалів триває до 98,6 мкс. GUI
 glitch filter працює після capture і не може скасувати trigger, який уже
-стався, тому простий CH1 falling без CH3 непридатний для power-on capture.
+стався, тому простий CH1 falling без кваліфікованого power gate непридатний.
 Наступний `logic_capture_11` показав, що незавантажений CH3/3V3 також дає
 короткі HIGH-сплески й передчасно відкриває простий edge gate. Тому gate
 кваліфікується безперервним HIGH протягом 1 мс та внутрішньою pull-down.

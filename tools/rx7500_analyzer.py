@@ -73,9 +73,9 @@ PROFILES = {
     "PEAK89 power-on frames": {
         "acq": ACQ_RAW, "rate": 5_000_000, "count": 8192,
         "duration": 0, "trigger": 1, "edge": TRIGGER_FALLING,
-        "timeout": 60_000, "filter": 400, "gate": 3,
-        "names": ["P89_CLK", "P89_CS", "P89_DATA", "P89_3V3",
-                  "AUX4", "AUX5", "AUX6", "AUX7"],
+        "timeout": 60_000, "filter": 400, "gate": 4,
+        "names": ["P89_CLK", "P89_CS", "P89_DATA", "AUX3",
+                  "P89_3V3", "AUX5", "AUX6", "AUX7"],
     },
     "THOR78 3-wire reverse engineering": {
         "acq": ACQ_EDGE, "rate": 0, "count": 0,
@@ -361,13 +361,17 @@ class AnalyzerApp:
             if self.profile_var.get() == "RX7500 SPI":
                 variable.set(index < 4)
             elif self.profile_var.get().startswith(("PEAK67", "PEAK35", "PEAK89", "THOR78")):
-                count = 4 if self.profile_var.get() in (
+                if self.profile_var.get() == "PEAK89 power-on frames":
+                    count = 5
+                elif self.profile_var.get() in (
                     "PEAK67 power-on timing",
                     "PEAK35 power-on timing",
                     "PEAK35 power-on frames",
                     "PEAK89 power-on timing",
-                    "PEAK89 power-on frames",
-                ) else 3
+                ):
+                    count = 4
+                else:
+                    count = 3
                 variable.set(index < count)
             else:
                 variable.set(True)

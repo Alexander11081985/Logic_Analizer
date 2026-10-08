@@ -79,8 +79,8 @@ flash/PSRAM лініями цієї плати.
   комутована шина 3V3 PEAK89 через послідовний резистор 4,7…10 кОм.
 - **PEAK89 power-on frames** — raw 5 MHz/8192 samples, trigger CH1/CS
   falling, timeout 60 s, glitch filter 400 ns, але trigger дозволяється лише
-  після стабільного CH3/GPIO7 HIGH протягом 1 мс. Firmware вмикає внутрішню
-  pull-down GPIO7, ігнорує плаваючі CLK/CS/DATA вимкненого приймача, відкриває
+  після стабільного CH4/GPIO8 HIGH протягом 1 мс. Firmware вмикає внутрішню
+  pull-down GPIO8, ігнорує плаваючі CLK/CS/DATA вимкненого приймача, відкриває
   power gate по внутрішній 3V3 PEAK89 і лише тоді чекає CS falling. Запуск
   повторити для двох збережених каналів, щоб відрізнити
   initialization words від restore-channel word.
