@@ -20,10 +20,10 @@
 | Application binary | `0x430B0`, 74% app partition вільно |
 | Стан прошивки | Power-on timing firmware прошита на COM9; flash hash verified, hard reset виконано 2026-09-22 |
 | Виявлені порти | COM9 = нова ESP32-S3; COM3 = Intel AMT, не використовувати |
-| Монтаж аналізатора | PEAK67/35: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA; PEAK89/THOR78: LINE0/1/2→GPIO4/5/6, ролі ще невідомі |
+| Монтаж аналізатора | PEAK67/35/89: CH0/GPIO4=CLK, CH1/GPIO5=CS, CH2/GPIO6=DATA; THOR78: LINE0/1/2→GPIO4/5/6, ролі ще невідомі |
 | Переносимі C-бібліотеки | `C:\VSCode\Peak67`: hardware verified, рекомендовано `peak67_startup()` без power-on прив'язки, commit `d815aca`; `C:\VSCode\Peak35`: 64/64 канали, startup A7/U8 і power-on timing, commit `2bbda9e` |
 | Репозиторії | Аналізатор: `github.com/Alexander11081985/Logic_Analizer`; бібліотеки: GitLab + `github.com/Alexander11081985/peak67` і `/peak35` |
-| Наступний крок | PEAK89 і THOR78: зняти окремі A1→A2, A2→A3, A7→A8 та A8→B1 captures; для THOR78 також E7→E8 і E8→F1 |
+| Наступний крок | PEAK89: зняти raw A8→B1 для перевірки формули поза Band A; THOR78: A1→A2, A2→A3, A7→A8, A8→B1, E7→E8 і E8→F1 |
 
 ## Мета
 
@@ -798,6 +798,17 @@ HIGH=5.0/5.058/5.2 us. Без filter короткі 200-ns завади на CS/
 автовизначення ролей. Виявлено GUI bug: новий `PEAK89 raw frame` не був
 доданий у точну routing-таблицю аналізу, тому waveform/CSV існували, але
 ліва панель показувала `—`; routing виправлено, default filter=400 ns.
+
+PEAK89 Band A завершено: raw-файли A1...A8 мають повні 32-bit MSB-first
+слова `075D8008, 07628008, 07678008, 076C8008, 07718008, 07768008,
+077B8008, 07808008`. Кожні +20 MHz дають точно `+0x00050000`. На всіх восьми
+точках підтверджена формула PEAK67 frequency field із додатковим bit 3:
+`lo=((RF-477)&~1)`, `frame=(lo<<14)|0x08`. CLK idle HIGH, CS active LOW,
+CS rising commit, DATA sampled on CLK rising. CLK period ≈6.1 us,
+LOW≈1.0...1.2 us, HIGH≈5.0...5.2 us, last CLK sample→CS rising=5.0...5.2 us.
+Отже PEAK89 належить до тієї ж 3-wire/32-bit сім'ї, що PEAK67/PEAK35, і за
+формулою найближчий саме до PEAK67. Межа доказу — Band A; наступний capture
+A8→B1 повинен перевірити прогноз B1/8180 MHz=`0x07858008`.
 
 ## Правило оновлення
 
