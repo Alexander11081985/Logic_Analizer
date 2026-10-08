@@ -82,10 +82,11 @@ CH3 підключається саме до внутрішньої комуто
 
 1. Вимкнути PEAK89 і дочекатися падіння його 3V3 на CH3.
 2. Вибрати `PEAK89 power-on frames`: raw 5 MHz, 8192 samples, power gate
-   CH3 rising, остаточний trigger CH1/CS falling, timeout 60 s, glitch filter
-   400 ns.
+   CH3 HIGH стабільно не менше 1 мс, остаточний trigger CH1/CS falling,
+   timeout 60 s, glitch filter 400 ns. Під час очікування firmware вмикає
+   внутрішню pull-down GPIO7, тому вимкнена шина 3V3 не повинна плавати.
 3. Натиснути `Capture`, дочекатися `ARMED`, потім увімкнути PEAK89.
-4. ESP32 спочатку відкриє gate по CH3 rising, проігнорує весь шум на
+4. ESP32 відкриє gate лише після стабільного CH3 HIGH, проігнорує весь шум на
    CLK/CS/DATA до живлення і почне raw sampling лише від першого CS falling.
 5. Зберегти CSV як `PEAK89_BOOT_FRAMES_<channel>.csv`.
 
@@ -104,6 +105,9 @@ Raw-вікно 1638,4 мкс починається з першого active-LOW
 провали на CLK/CS/DATA. Частина CS LOW-провалів триває до 98,6 мкс. GUI
 glitch filter працює після capture і не може скасувати trigger, який уже
 стався, тому простий CH1 falling без CH3 непридатний для power-on capture.
+Наступний `logic_capture_11` показав, що незавантажений CH3/3V3 також дає
+короткі HIGH-сплески й передчасно відкриває простий edge gate. Тому gate
+кваліфікується безперервним HIGH протягом 1 мс та внутрішньою pull-down.
 
 ## Підтверджений Band A
 

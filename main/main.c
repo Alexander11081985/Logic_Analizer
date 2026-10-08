@@ -35,6 +35,7 @@ static const gpio_num_t s_channel_gpio[CHANNEL_COUNT] = {
 #define V2_HEADER_SIZE 56U
 #define COMMAND_V2_SIZE 36U
 #define LEGACY_PAYLOAD_SIZE ((LEGACY_SAMPLE_COUNT + 1U) / 2U)
+#define TRIGGER_GATE_STABLE_US 1000U
 
 #define VERSION_V1 1U
 #define VERSION_V2 2U
@@ -92,6 +93,8 @@ static volatile bool s_capture_busy;
 static volatile bool s_capture_ready;
 static volatile bool s_triggered;
 static volatile bool s_trigger_gate_open;
+static bool s_trigger_gate_candidate;
+static int64_t s_trigger_gate_high_since_us;
 static volatile uint32_t s_cycles_per_sample;
 static volatile uint32_t s_edge_count;
 static volatile uint32_t s_lost_events;
@@ -124,16 +127,6 @@ static inline bool IRAM_ATTR trigger_matches(uint8_t previous, uint8_t current)
     return s_config.trigger_edge == TRIGGER_EITHER ||
            (s_config.trigger_edge == TRIGGER_RISING && now) ||
            (s_config.trigger_edge == TRIGGER_FALLING && !now);
-}
-
-static inline bool IRAM_ATTR trigger_gate_rises(uint8_t previous, uint8_t current)
-{
-    if (s_config.trigger_gate_code == 0U ||
-        s_config.trigger_gate_code > CHANNEL_COUNT) {
-        return false;
-    }
-    const uint8_t mask = (uint8_t)(1U << (s_config.trigger_gate_code - 1U));
-    return (previous & mask) == 0U && (current & mask) != 0U;
 }
 
 static void IRAM_ATTR capture_raw_from_isr(uint8_t first_state)
@@ -174,9 +167,6 @@ static void IRAM_ATTR analyzer_gpio_isr(void *argument)
 
     if (s_config.acquisition == ACQ_RAW) {
         if (!s_trigger_gate_open) {
-            if (trigger_gate_rises(previous, current)) {
-                s_trigger_gate_open = true;
-            }
             return;
         }
         if (trigger_matches(previous, current)) {
@@ -338,10 +328,15 @@ static void arm_capture(const capture_config_t *configuration)
         return;
     }
     disable_all_interrupts();
+    for (size_t channel = 0; channel < CHANNEL_COUNT; ++channel) {
+        ESP_ERROR_CHECK(gpio_pulldown_dis(s_channel_gpio[channel]));
+    }
     s_config = *configuration;
     s_capture_ready = false;
     s_triggered = false;
     s_trigger_gate_open = configuration->trigger_gate_code == 0U;
+    s_trigger_gate_candidate = false;
+    s_trigger_gate_high_since_us = 0;
     s_edge_count = 0U;
     s_lost_events = 0U;
     s_capture_duration_ticks = 0U;
@@ -385,6 +380,7 @@ static void arm_capture(const capture_config_t *configuration)
             const uint8_t gate_channel = s_config.trigger_gate_code - 1U;
             if (gate_channel != s_config.trigger_channel) {
                 const gpio_num_t gate_pin = s_channel_gpio[gate_channel];
+                ESP_ERROR_CHECK(gpio_pulldown_en(gate_pin));
                 ESP_ERROR_CHECK(gpio_set_intr_type(gate_pin, GPIO_INTR_ANYEDGE));
                 ESP_ERROR_CHECK(gpio_intr_enable(gate_pin));
             }
@@ -497,6 +493,25 @@ static void service_capture_deadlines(void)
         return;
     }
     const int64_t elapsed_us = esp_timer_get_time() - s_arm_time_us;
+    if (!s_trigger_gate_open && s_config.trigger_gate_code > 0U) {
+        const uint8_t gate_mask =
+            (uint8_t)(1U << (s_config.trigger_gate_code - 1U));
+        const uint8_t current = read_analyzer_pins();
+        const int64_t now_us = esp_timer_get_time();
+        if ((current & gate_mask) != 0U) {
+            if (!s_trigger_gate_candidate) {
+                s_trigger_gate_candidate = true;
+                s_trigger_gate_high_since_us = now_us;
+            } else if (now_us - s_trigger_gate_high_since_us >=
+                       (int64_t)TRIGGER_GATE_STABLE_US) {
+                s_trigger_gate_open = true;
+                s_edge_last_state = current;
+            }
+        } else {
+            s_trigger_gate_candidate = false;
+            s_trigger_gate_high_since_us = 0;
+        }
+    }
     if (!s_triggered && s_config.trigger_timeout_ms > 0U &&
         elapsed_us >= (int64_t)s_config.trigger_timeout_ms * 1000) {
         disable_all_interrupts();
