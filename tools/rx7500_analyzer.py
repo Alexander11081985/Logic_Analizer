@@ -668,9 +668,14 @@ class AnalyzerApp:
         if not rows:
             return 0.0, max(self.capture.duration_us, 0.1)
 
-        # Default to the real activity envelope instead of wasting most of the
-        # plot on trigger wait / idle capture tail.
-        times = [time_us for _, time_us, _, changed in rows if changed]
+        # Default to the activity envelope of the currently visible channels.
+        # Unconnected hidden AUX inputs can toggle randomly; including those
+        # transitions here makes a short protocol frame look compressed into
+        # an otherwise idle multi-millisecond capture.
+        visible_mask = sum(1 << channel for channel in range(8)
+                           if self.channel_visible[channel].get())
+        times = [time_us for _, time_us, _, changed in rows
+                 if changed & visible_mask]
         if not times:
             return 0.0, max(self.capture.duration_us, 0.1)
         first, last = min(times), max(times)

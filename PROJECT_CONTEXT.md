@@ -772,6 +772,16 @@ application image `0x430B0` bytes; bootloader, partition table і application
 з'явився. `smoke_test_device.py COM8 --timeout 8` відкрив transport, але
 закінчився `NO_TRIGGER`, що нормально без під'єднаного зовнішнього CLK.
 
+2026-10-08: проаналізовано перший PEAK89 capture `Documents\\Peak89\\A1.csv`.
+Edge timestamp = 240 MHz (4.167 ns/tick), тому збільшення acquisition
+resolution не потрібне: найкоротші виміряні LOW-імпульси LINE0 мають
+1.025...1.050 us. Корисні переходи LINE0..2 закінчуються на 193.9375 us,
+але переходи плаваючих AUX входів продовжуються майже до 19 ms і помилково
+розтягували `Fit activity`. GUI виправлено: activity envelope тепер враховує
+лише видимі канали, тож вимкнені AUX більше не стискають корисний кадр.
+Для PEAK89 залишити `Edge events`, CH0 rising, duration 20 ms, timeout 10 s;
+на екрані увімкнути тільки CH0..CH2. Ролі ліній ще не вважаються доведеними.
+
 ## Правило оновлення
 
 Повний опис розташування, структури, поточного функціоналу, обмежень і
