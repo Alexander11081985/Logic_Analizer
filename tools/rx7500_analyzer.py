@@ -56,6 +56,13 @@ PROFILES = {
         "names": ["P89_LINE0", "P89_LINE1", "P89_LINE2", "AUX3",
                   "AUX4", "AUX5", "AUX6", "AUX7"],
     },
+    "PEAK89 raw frame": {
+        "acq": ACQ_RAW, "rate": 5_000_000, "count": 8192,
+        "duration": 0, "trigger": 1, "edge": TRIGGER_FALLING,
+        "timeout": 10_000,
+        "names": ["P89_SCL", "P89_CS", "P89_DATA", "AUX3",
+                  "AUX4", "AUX5", "AUX6", "AUX7"],
+    },
     "THOR78 3-wire reverse engineering": {
         "acq": ACQ_EDGE, "rate": 0, "count": 0,
         "duration": 20_000, "trigger": 0, "edge": TRIGGER_RISING,
